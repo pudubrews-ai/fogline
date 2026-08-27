@@ -12,8 +12,8 @@
 // Nothing in this module touches a credential, an env secret, or a .env.
 //
 // Crosscheck itself is a standalone CLI with its own repo and spec; v0.8
-// does not fork, modify, or vendor it (§3.1). Fishbowl invokes it, files the
-// result, and crosscheck does not learn what fishbowl is.
+// does not fork, modify, or vendor it (§3.1). Fogline invokes it, files the
+// result, and crosscheck does not learn what fogline is.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";

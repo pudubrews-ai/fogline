@@ -1,6 +1,6 @@
 // THE SEAM (client spec §3). Reference adapter.
 // Takes {system, user, maxTokens, signal, model?}, returns raw text. Knows
-// nothing about Fishbowl, parses nothing, handles no deadlines, retries
+// nothing about Fogline, parses nothing, handles no deadlines, retries
 // nothing. `model` is the tiering hook (client spec §3.4): the caller picks
 // by situation, this line honors it.
 

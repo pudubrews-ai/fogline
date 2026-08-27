@@ -107,7 +107,7 @@ const server = createServer(async (req, res) => {
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop())) {
   server.listen(PORT, () => {
-    console.log(`fishbowl-analyst listening on http://localhost:${PORT} (surface ${SURFACE})`);
+    console.log(`fogline-analyst listening on http://localhost:${PORT} (surface ${SURFACE})`);
     console.log("model access: claude CLI subscription OAuth — no API key, no .env, no daemon write routes");
   });
 }

@@ -191,9 +191,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const daemon = createDaemon({}, process.argv[2] ? { configFile: process.argv[2] } : {});
   daemon.listen();
   console.log(
-    `fishbowl-daemon listening on http://localhost:${daemon.config.port} ` +
+    `fogline-daemon listening on http://localhost:${daemon.config.port} ` +
       `(${daemon.config.gridSize}x${daemon.config.gridSize} grid, ${daemon.config.slots} slots, ` +
-      `${daemon.config.startPaused ? "paused — press play in the observatory" : "running"})`
+      `${daemon.config.startPaused ? "paused — press play in Scry" : "running"})`
   );
   const via = daemon.engine.viability;
   console.log(

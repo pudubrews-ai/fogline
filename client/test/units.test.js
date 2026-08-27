@@ -645,8 +645,8 @@ test("identity store: holds exactly agentId and token, and clears cleanly", () =
 });
 
 test("identity store: file store is keyed by server — a foreign daemon's identity is invisible", () => {
-  const dir = mkdtempSync(join(tmpdir(), "fishbowl-identity-"));
-  const path = join(dir, ".fishbowl-identity-test.json");
+  const dir = mkdtempSync(join(tmpdir(), "fogline-identity-"));
+  const path = join(dir, ".fogline-identity-test.json");
   try {
     const home = fileIdentityStore(path, "http://localhost:3000");
     home.save({ agentId: "a_1", token: "t1" });

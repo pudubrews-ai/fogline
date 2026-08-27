@@ -1,8 +1,8 @@
-# Fishbowl Client
+# Fogline Client
 
-The client half of the Fishbowl protocol (`fishbowl-protocol-v0.5.md` as
+The client half of the Fogline protocol (`fogline-protocol-v0.5.md` as
 amended by the v0.6 and v0.7 amendment documents, implemented per
-`fishbowl-client-spec-v0.7.md`). Supplies decisions for
+`fogline-client-spec-v0.7.md`). Supplies decisions for
 exactly one agent. This is the **only** place in the system where a model
 credential exists — the daemon has none, by design.
 
@@ -44,7 +44,7 @@ states append-only inscription mechanics plainly per spec §5b — entries
 rendered in order with author and tick, remaining space reported as a bare
 count, no vandalism warnings, no conservation advice. The envelope gains
 `clientStatus` (`ok` | `slow` | `adapter_fault` | `bad_output`) beside
-`calls`, replacing the reason-string flag the observatory used to parse.
+`calls`, replacing the reason-string flag Scry used to parse.
 
 **v0.5 in one paragraph:** three more vendors, one shared seam.
 `adapters/subprocess.js` is a base adapter over any non-interactive CLI:
@@ -151,7 +151,7 @@ Each agent is one process: same code, different `--label` (defaults to
 `clientName` from config). The first run generates a persona and registers
 (or, with `--heir`, polls `/scenario` and claims the first matured body,
 authoring from its heritage brief); every later run attaches to the same body
-via `.fishbowl-identity-<label>.json`, keyed by server. The reconnect sends
+via `.fogline-identity-<label>.json`, keyed by server. The reconnect sends
 `takeover: true` — it is your body. A `NOT_ATTACHABLE` while the daemon still
 counts the old connection live is normal; the client polls and walks back in.
 Ctrl-C leaves gracefully; `--release` deletes the agent for good.

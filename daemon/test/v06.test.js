@@ -36,7 +36,7 @@ function tick(world, n, actions, hooks = {}) {
 // ---------- 1. demand over expectedAgents ----------
 
 test("GATE expectedAgents: 12 slots and 5 expected agents compute demand over 5; both values reach the boot log", async () => {
-  const logDir = mkdtempSync(join(tmpdir(), "fishbowl-v06-log-"));
+  const logDir = mkdtempSync(join(tmpdir(), "fogline-v06-log-"));
   const daemon = createDaemon(
     { slots: 12, minAgents: 2, expectedAgents: 5, startPaused: true },
     { logDir }

@@ -135,8 +135,8 @@ test("GATE smoke test: a CLI that cannot produce a response refuses to take a sl
   // Process level: a shimmed broken `claude` makes `node index.js` exit 1
   // with the refusal, before any registration attempt — the server URL is
   // unreachable on purpose, and must never be contacted.
-  const shimDir = mkdtempSync(join(tmpdir(), "fishbowl-shim-"));
-  const identity = join(baseDir, "..", ".fishbowl-identity-v07smoke.json");
+  const shimDir = mkdtempSync(join(tmpdir(), "fogline-shim-"));
+  const identity = join(baseDir, "..", ".fogline-identity-v07smoke.json");
   try {
     const shim = join(shimDir, "claude");
     writeFileSync(shim, "#!/bin/sh\nexit 2\n");

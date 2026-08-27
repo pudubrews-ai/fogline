@@ -177,7 +177,7 @@ export function createSubprocessAdapter(vendor) {
 
     // A fresh EMPTY temp dir, never the repo: these are agentic coding
     // tools, and a tool-using CLI must find nothing (client spec §3.4).
-    const cwd = mkdtempSync(join(tmpdir(), "fishbowl-"));
+    const cwd = mkdtempSync(join(tmpdir(), "fogline-"));
 
     // Resolved before spawn so a missing credential file is a classified
     // adapter fault, not an anonymous rejection.

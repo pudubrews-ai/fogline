@@ -51,7 +51,7 @@ const LETHAL = {
 };
 
 function bootArchived(overrides = {}, options = { logs: false }) {
-  const tmp = mkdtempSync(join(tmpdir(), "fishbowl-v08-"));
+  const tmp = mkdtempSync(join(tmpdir(), "fogline-v08-"));
   const daemon = createDaemon(
     {
       ...LETHAL,
@@ -223,7 +223,7 @@ test("GATE archive containment: no agent route reaches anything under the archiv
 // ---------- 6. extract ceiling ----------
 
 test("GATE extract ceiling: an extract exceeding maxExtractBytes refuses and reports its size rather than truncating", async () => {
-  const tmp = mkdtempSync(join(tmpdir(), "fishbowl-v08-extract-"));
+  const tmp = mkdtempSync(join(tmpdir(), "fogline-v08-extract-"));
   try {
     const worldLog = join(tmp, "world.log");
     const lines = [JSON.stringify({ ts: "t", event: "viability", runId: "r_x" })];
@@ -263,7 +263,7 @@ test("GATE extract ceiling: an extract exceeding maxExtractBytes refuses and rep
 // ---------- shared fixture for supervisor tests ----------
 
 function supervisorFixture(ccOverrides) {
-  const tmp = mkdtempSync(join(tmpdir(), "fishbowl-v08-sup-"));
+  const tmp = mkdtempSync(join(tmpdir(), "fogline-v08-sup-"));
   const worldLog = join(tmp, "world.log");
   writeFileSync(
     worldLog,

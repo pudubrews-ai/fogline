@@ -96,7 +96,7 @@ export function commitPayload(config, name) {
   const slug = (clean || "untitled").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return {
     config: named,
-    filename: `fishbowl-config-${slug || "untitled"}.json`,
+    filename: `fogline-config-${slug || "untitled"}.json`,
     text: JSON.stringify(named, null, 2) + "\n",
   };
 }

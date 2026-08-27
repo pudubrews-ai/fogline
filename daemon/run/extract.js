@@ -6,7 +6,7 @@
 // eventually succeeded at 1,395s. So the extract is scoped, and an extract
 // that cannot fit under maxExtractBytes REFUSES with its size — it never
 // truncates. Crosscheck's own spec errors on overflow rather than trimming;
-// fishbowl must not hand it inputs that reach that path.
+// fogline must not hand it inputs that reach that path.
 //
 // Scoping (settled with the operator at build time): the windowed composite —
 //   1. world events excluding reflections (run 11 filtered these by hand and
@@ -131,7 +131,7 @@ export function buildExtract({ runId, worldLogPath, outcome, clientLogPaths = []
     : null;
 
   const parts = [
-    `FISHBOWL RUN EXTRACT — run ${runId}`,
+    `FOGLINE RUN EXTRACT — run ${runId}`,
     ``,
     `== WORLD EVENTS (reflections excluded) ==`,
     worldSection,

@@ -147,7 +147,7 @@ test("GATE threshold opacity: no observation or /scenario response carries regen
 // ---------- 5. capacity headline ----------
 
 test("GATE capacity headline: a world that cannot sustain its expected population boots, and the shortfall is a headline figure; the ratio floor still refuses (v0.7 A3)", async () => {
-  const logDir = mkdtempSync(join(tmpdir(), "fishbowl-v07-log-"));
+  const logDir = mkdtempSync(join(tmpdir(), "fogline-v07-log-"));
   const daemon = createDaemon(
     { slots: 12, minAgents: 2, expectedAgents: 40, startPaused: true },
     { logDir }

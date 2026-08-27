@@ -1,14 +1,14 @@
-# Fishbowl
+# Fogline
 
 A tiny persistent world where LLM agents live under fog: they know only the
 cells they have stood in, see bands instead of numbers, and learn physics by
 failing at it. The daemon owns the world and holds no model credentials; each
-client supplies decisions for exactly one agent; the observatory watches from
+client supplies decisions for exactly one agent; Scry watches from
 outside the fog. What the protocol refuses to provide — money, law,
 ownership, reputation, trade with consent — is exactly what the runs exist to
 watch agents invent.
 
-**Current version: v0.8** (`specs/`) — **the operator release**. Protocol
+**Current version: v0.8** — **the operator release**. Protocol
 v0.5 stays in force, read jointly with the v0.6 and v0.7 amendments; v0.8
 adds none. Its defining property is what it doesn't touch: no prompt
 changes, no world semantics, `client/` never opened — run 12 ran on it
@@ -23,7 +23,7 @@ death-specifics appendix) **refuses above a byte ceiling rather than
 truncating** — the run-11 diagnosis showed vendor latency tracks input
 size, not invocation shape. Spawning crosscheck is not a credentials
 breach: it authenticates via its own CLI OAuth exactly as a client does.
-The observatory gains an **LLM-backed analyst** (read-only *structurally* —
+Scry gains an **LLM-backed analyst** (read-only *structurally* —
 its client cannot construct a request to `/control`, `/spark`, or any
 config path; a fifth billing surface; private objectives behind a
 default-off toggle; watch mode riding `situationChanged`), a **pre-boot
@@ -78,7 +78,7 @@ line's register, `wait` reads as an ordinary action, agents perceive their own
 failed-attempt counts, viability demand computes over `expectedAgents` rather
 than slots, a construction-slack ratio sits beside subsistence, death records
 flag whether reachable food existed, clients emit a typed `clientStatus`, SSE
-streams keep-alive, and the observatory gains a moonlight floor, eye-cast
+streams keep-alive, and Scry gains a moonlight floor, eye-cast
 lights, a lighting override, and an inscription history panel.
 
 **v0.5** was an amendment pass, not a rewrite: the
@@ -94,7 +94,7 @@ The client gained three subprocess CLI vendors (`claude-cli`, `codex-cli`,
 `kimi-cli`) over one base adapter, each declaring a `surface` (vendor + 4-hex
 account fingerprint, never a credential) and classifying faults as slow /
 adapter_fault / bad output — so an expired session reads as a fault, not 200
-ticks of a pensive agent. The observatory adds viability, spend-per-surface,
+ticks of a pensive agent. Scry adds viability, spend-per-surface,
 and Departed-roster panels, plus a real material/lighting pass. A same-day
 follow-up (found live running a 5-founder, three-vendor world) fixed four
 client startup/tick-loop reliability bugs: overlapping decide/act chains
@@ -109,7 +109,7 @@ section for specifics.
 |---|---|---|
 | [`daemon/`](daemon/) | The world: grid, bodies, vitals, resources, structures, destruction, lineage, memory, the four fogs, viability arithmetic, tick engine, operator channel, run archive, crosscheck supervision. Express only, no credentials ever. | 178 |
 | [`client/`](client/) | Decisions for one agent: prompt building, parsing, cheap-tick continuation, deadline budgeting, persona authoring, subprocess CLI adapters. The only place a model credential exists. | 119 |
-| [`observatory/`](observatory/) | Standalone three.js viewer. Live SSE from the daemon or replay of a saved `ticks.log`, one shared reducer for both. Sphere robots, simTime sun, fog-overlay agent maps, destruction ledger, viability/spend/norm/inscription panels, plus the v0.8 analyst, pre-boot config panel, crosscheck page, and ticker. | 36 |
+| [`scry/`](scry/) | Standalone three.js viewer. Live SSE from the daemon or replay of a saved `ticks.log`, one shared reducer for both. Sphere robots, simTime sun, fog-overlay agent maps, destruction ledger, viability/spend/norm/inscription panels, plus the v0.8 analyst, pre-boot config panel, crosscheck page, and ticker. | 36 |
 
 ## Quick start
 
@@ -125,24 +125,20 @@ node index.js --label b --adapter scripted --server http://localhost:3100
 # or a real vendor: claude-code, claude, claude-cli, codex-cli, kimi-cli, glm-cli — see client/README.md
 
 # the viewer — press play in its transport bar to start the run
-cd observatory && npm install && npm run dev     # http://localhost:5173
-cd observatory && npm run analyst                # the analyst sidecar, http://localhost:3200
+cd scry && npm install && npm run dev     # http://localhost:5173
+cd scry && npm run analyst                # the analyst sidecar, http://localhost:3200
 ```
 
-Replay a finished run with no daemon: `cd observatory && npm run dev`, then
+Replay a finished run with no daemon: `cd scry && npm run dev`, then
 open `?source=replay` with a served `ticks.log`, or just drop the file onto
 the page.
 
 ## Layout
 
 ```
-specs/      normative documents: protocol v0.5 + the v0.6 and v0.7
-            amendments (jointly normative), the v0.8 daemon/observatory
-            specs, and the v0.7 client spec (still current)
 daemon/     world half
 client/     client half
-observatory/ viewer
-archive/    superseded specs, goals, and packages (v0–v0.7)
+scry/       viewer
 ```
 
 Each package has its own README with the full picture.

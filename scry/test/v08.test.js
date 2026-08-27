@@ -188,7 +188,7 @@ test("GATE config frozen: the panel refuses to commit once a run has opened tick
   const payload = commitPayload({ gridSize: 8, retrievalK: 8, vitals: { sustenanceMax: 100 } }, "run twelve");
   assert.equal(payload.config.configName, "run twelve");
   assert.equal(payload.config.retrievalK, 8, "unexposed keys pass through untouched");
-  assert.equal(payload.filename, "fishbowl-config-run-twelve.json");
+  assert.equal(payload.filename, "fogline-config-run-twelve.json");
   const diff = diffConfigs({ gridSize: 8, vitals: { sustenanceMax: 100 } }, { gridSize: 10, vitals: { sustenanceMax: 100 } });
   assert.deepEqual(diff, [{ path: "gridSize", from: 8, to: 10 }]);
 });
@@ -231,7 +231,7 @@ test("GATE tab title: run id, tick, and population, reflecting paused, waiting, 
   // Stopped outranks paused: a stopped world quietly holding is the thing
   // worth noticing from another window.
   assert.equal(tabTitle(state, { stopped: true, paused: true }), "run11 · t247 · 5/13 · stopped");
-  assert.equal(tabTitle(null, {}), "Fishbowl Observatory");
+  assert.equal(tabTitle(null, {}), "Fogline Scry");
 });
 
 // ---------- crosscheck report fixtures ----------

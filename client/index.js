@@ -2,7 +2,7 @@
 // First run:   node index.js                      (the model authors its own persona)
 // Heir run:    node index.js --heir               (claims a matured body, authors from its heritage brief)
 // Restarts:    node index.js                      (attaches, never re-registers)
-// The identity file .fishbowl-identity-<label>.json is the sole persistence:
+// The identity file .fogline-identity-<label>.json is the sole persistence:
 // server, agentId, token, registeredAt. --persona <file> is the escape hatch
 // for reproducing a run with a pinned character.
 
@@ -416,7 +416,7 @@ async function main() {
   }
 
   const label = args.label ?? config.clientName;
-  const identityPath = join(baseDir, `.fishbowl-identity-${label}.json`);
+  const identityPath = join(baseDir, `.fogline-identity-${label}.json`);
   // One-time migration from the pre-v0.2 location, so live agents keep their bodies.
   const oldPath = join(baseDir, ".identity", `${label}.json`);
   if (!existsSync(identityPath) && existsSync(oldPath)) renameSync(oldPath, identityPath);

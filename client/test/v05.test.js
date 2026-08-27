@@ -186,7 +186,7 @@ test("GATE empty working directory: the spawned process sees a fresh temp dir wi
   );
   const m = /cwd=(\S+) entries=\s*(\d+)/.exec(out.result);
   assert.ok(m, `stub reported its cwd: ${out.result}`);
-  assert.ok(m[1].includes("fishbowl-"), "a fresh fishbowl-* temp dir");
+  assert.ok(m[1].includes("fogline-"), "a fresh fogline-* temp dir");
   assert.ok(!m[1].includes("client"), "not the repo");
   assert.equal(m[2], "0", "completely empty — a tool-using CLI finds nothing");
 });
@@ -213,7 +213,7 @@ test("GATE preamble stripping: banners, bullets, and fences ahead of the JSON al
 // ---------- 6. surface fingerprint ----------
 
 test("GATE surface fingerprint: stable, shared per account, distinct across accounts, credential-free", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "fishbowl-surface-"));
+  const dir = mkdtempSync(join(tmpdir(), "fogline-surface-"));
   try {
     const idA = join(dir, "account-a");
     const idB = join(dir, "account-b");
@@ -305,7 +305,7 @@ test("GATE three-vendor run: three clients, three adapters, one world, 40 ticks,
   const server = daemon.listen(0);
   await new Promise((r) => server.once("listening", r));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const dir = mkdtempSync(join(tmpdir(), "fishbowl-3v-"));
+  const dir = mkdtempSync(join(tmpdir(), "fogline-3v-"));
   const sessions = [];
   try {
     const done = new Promise((resolve) => {
@@ -389,7 +389,7 @@ test("regression run5-k1: an adapter fault during persona generation at registra
   const server = daemon.listen(0);
   await new Promise((r) => server.once("listening", r));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const dir = mkdtempSync(join(tmpdir(), "fishbowl-fault-"));
+  const dir = mkdtempSync(join(tmpdir(), "fogline-fault-"));
   try {
     const scenario = await (await fetch(`${base}/scenario`)).json();
 

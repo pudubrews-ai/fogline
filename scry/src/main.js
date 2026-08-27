@@ -494,7 +494,7 @@ window.addEventListener("keydown", (e) => {
     if (hadUI) document.body.classList.add("hidden-ui");
     stage.render();
     const a = document.createElement("a");
-    a.download = `fishbowl-t${state?.tick ?? 0}.png`;
+    a.download = `fogline-t${state?.tick ?? 0}.png`;
     a.href = stage.renderer.domElement.toDataURL("image/png");
     a.click();
     if (hadUI) document.body.classList.remove("hidden-ui");

@@ -379,7 +379,7 @@ test("GATE gridSize 1 is rejected at boot with a clear error, not a hang", () =>
 // ---------- 12. run_started ----------
 
 test("GATE run_started: boot and two resets write three distinct run ids to ticks.log, each with a full bootstrap", async () => {
-  const logDir = mkdtempSync(join(tmpdir(), "fishbowl-v04-"));
+  const logDir = mkdtempSync(join(tmpdir(), "fogline-v04-"));
   const daemon = createDaemon({ startPaused: true }, { logDir });
   try {
     daemon.engine.reset();

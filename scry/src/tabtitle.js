@@ -4,7 +4,7 @@
 // ticking is precisely what is worth noticing from another window.
 
 export function tabTitle(state, runState = {}) {
-  if (!state || !state.runId) return "Fishbowl Observatory";
+  if (!state || !state.runId) return "Fogline Scry";
   const population = state.agents?.size ?? 0;
   const slots = state.slots?.total ?? null;
   const parts = [state.runId, `t${state.tick ?? 0}`, slots != null ? `${population}/${slots}` : `${population}`];

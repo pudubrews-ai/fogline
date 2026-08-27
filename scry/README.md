@@ -1,9 +1,9 @@
-# Fishbowl Observatory
+# Fogline Scry
 
-A 3D viewer for a Fishbowl world (`fishbowl-observatory-spec-v0.6.md`). It
+A 3D viewer for a Fogline world. It
 renders what the daemon publishes and it never decides anything. Same
 architecture as an agent client — a client of the operator channel — with the
-opposite fog: none. The observatory is outside the fog and has no
+opposite fog: none. Scry is outside the fog and has no
 agent-visible feature at all.
 
 **v0.6 in one paragraph:** night became watchable — a moonlight floor

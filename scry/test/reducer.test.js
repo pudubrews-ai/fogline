@@ -45,7 +45,7 @@ async function registerTwo(base) {
 }
 
 before(async () => {
-  logDir = mkdtempSync(join(tmpdir(), "fishbowl-obs-"));
+  logDir = mkdtempSync(join(tmpdir(), "fogline-obs-"));
   const daemon = createDaemon(
     {
       gridSize: 4,

@@ -1,10 +1,12 @@
 {
-  "name": "fishbowl-daemon",
-  "version": "0.2.0",
-  "description": "Fishbowl daemon: the world half of the Fishbowl protocol. No model credentials, ever.",
+  "name": "@fogline/daemon",
+  "version": "0.9.0",
+  "description": "Fogline daemon: the world half of the Fogline protocol. No model credentials, ever.",
   "type": "module",
   "main": "server.js",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "test": "node --test \"test/*.test.js\"",

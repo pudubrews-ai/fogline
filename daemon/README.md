@@ -1,8 +1,8 @@
-# Fishbowl Daemon
+# Fogline Daemon
 
-The world half of the Fishbowl protocol (`fishbowl-protocol-v0.5.md` as
+The world half of the Fogline protocol (`fogline-protocol-v0.5.md` as
 amended by the v0.6 and v0.7 amendment documents, implemented per
-`fishbowl-daemon-spec-v0.7.md`). Owns the grid, slots, bodies,
+`fogline-daemon-spec-v0.7.md`). Owns the grid, slots, bodies,
 personas, resources, vitals, lineage, memory, destruction, viability, the
 clock, the tick engine, and the operator channel. Holds **no model
 credentials** and makes **no inference API calls** — there is no `.env` file,
@@ -128,7 +128,7 @@ npm run verify                  # 20 ticks, two unmanned bodies: waits, misses c
 ```
 
 The built-in page at `/` is the legacy 2D operator view; the real viewer is
-the standalone `observatory/` package (its own port, live SSE or ticks.log
+the standalone `scry/` package (its own port, live SSE or ticks.log
 replay), which is why `/observatory/*` and `/control` now answer CORS.
 
 The daemon starts paused (`startPaused: true`), and tick 1 will not open until
@@ -169,7 +169,7 @@ world/observe.js     THE FOG BOUNDARY — four fogs: spatial, cartographic,
 api/auth.js          two realms, two middlewares (agent / operator)
 api/agent.js         /scenario /register /attach + /agent/stream|act|leave|release
 api/operator.js      /observatory/* + /control (omniscient, raw values),
-                     CORS for the standalone observatory, GET snapshot
+                     CORS for the standalone Scry viewer, GET snapshot
 public/              legacy 2D operator view (vanilla JS, no build step)
 ```
 
@@ -276,7 +276,7 @@ refusing with its size rather than truncating; crosscheck failure non-fatal;
 process-group cleanup across a hundred cycles (timeout and shutdown kills,
 clean table); one-at-a-time refusal recorded on the run record; all five
 supervision states reaching the operator channel; and the daemon serving
-the observatory and `/scenario` throughout a crosscheck. 178 tests total.
+Scry and `/scenario` throughout a crosscheck. 178 tests total.
 
 ## The run archive and the post-run crosscheck (v0.8)
 
@@ -284,7 +284,7 @@ the observatory and `/scenario` throughout a crosscheck. 178 tests total.
 DERIVED `archive/index.json` that rebuilds identically from the records.
 Written at boot (config verbatim, boot figures, `run_started`) and at run
 stop (the outcome summary); a run killed mid-flight stays in the index
-marked incomplete. Read by the observatory over the operator realm
+marked incomplete. Read by Scry over the operator realm
 (`/observatory/archive/*`), reachable by no agent route.
 
 `run/crosscheck.js` — when a run stops, the daemon starts crosscheck
@@ -310,5 +310,5 @@ gives, begets, fosterings, maturations, deaths, reflections, attach/leave.
 deposits, premise) at boot and every reset, then one consolidated line per
 resolved tick: the tick's world events, memory writes, every agent's action
 with latency, all bodies, and every non-empty cell. The identical record is
-emitted on the operator stream, so the observatory's live and replay modes
+emitted on the operator stream, so Scry's live and replay modes
 fold the same input — every run is replay material even if it dies early.

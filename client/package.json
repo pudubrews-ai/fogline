@@ -1,7 +1,7 @@
 {
-  "name": "fishbowl-client",
-  "version": "0.4.0",
-  "description": "Fishbowl client: supplies decisions for one agent. The only place in the system where a model credential exists.",
+  "name": "@fogline/client",
+  "version": "0.9.0",
+  "description": "Fogline client: supplies decisions for one agent. The only place in the system where a model credential exists.",
   "type": "module",
   "main": "index.js",
   "engines": {
