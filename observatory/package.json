@@ -1,0 +1,20 @@
+{
+  "name": "fishbowl-observatory",
+  "version": "0.4.0",
+  "description": "3D viewer for a Fishbowl world. Renders what the daemon publishes; decides nothing. Live from the operator channel or replay from a saved ticks.log — one reducer for both.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "analyst": "node analyst/server.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "vite": "^7.3.6"
+  }
+}

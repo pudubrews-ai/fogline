@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Runtime logs and process output — never committed
+*.log
+*.out
+
+# Run archive data, incl. crosscheck reports (operational, like logs — never committed)
+archive/
+
+# Credentials and identity — never committed
+.env
+.env.*
+!.env.example
+.identity/
+.fishbowl-identity-*.json
+.fogline-identity-*.json
+
+# Packages and build artifacts
+*.zip
+dist/
+
+# Private working docs — specs and goals stay out of the public repo
+fogline-*-v0.9.md
+fogline-v0.9-*.md
+
+# OS / tooling
+.DS_Store
+.claude/

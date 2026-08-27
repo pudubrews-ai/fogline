@@ -1,0 +1,41 @@
+{
+  "server": "http://localhost:3000",
+  "clientName": "claude-reference",
+  "adapter": "claude",
+  "modelHint": "claude-sonnet-5",
+  "maxTokens": 1000,
+  "logRaw": true,
+  "logPrompts": true,
+  "pollWhenFull": true,
+  "persona": null,
+  "cheapTicks": true,
+  "tierBySituation": true,
+  "cheapModel": "claude-haiku-4-5-20251001",
+  "richModel": "claude-sonnet-5",
+  "pollIntervalMs": 5000,
+  "escalateOnHungry": true,
+  "escalateOnHurt": true,
+  "faultAlarmAfter": 3,
+  "adapters": {
+    "claude": {
+      "budgetFactor": 0.75
+    },
+    "claude-code": {
+      "budgetFactor": 0.75
+    },
+    "claude-cli": {
+      "budgetFactor": 0.9
+    },
+    "codex-cli": {
+      "budgetFactor": 0.85
+    },
+    "kimi-cli": {
+      "budgetFactor": 0.9,
+      "model": "kimi-code/k3"
+    },
+    "glm-cli": {
+      "budgetFactor": 0.9,
+      "model": "glm-4.7"
+    }
+  }
+}

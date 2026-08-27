@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fishbowl Observatory</title>
+    <!-- Tab identity (spec v0.8 §6): the sphere robot with lit eyes — a
+         circle and two dots is about all that survives at 16px, and it is
+         exactly what an agent looks like. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23555049'/%3E%3Ccircle cx='5.4' cy='7' r='1.6' fill='%2322ccee'/%3E%3Ccircle cx='10.6' cy='7' r='1.6' fill='%2322ccee'/%3E%3C/svg%3E" />
+    <style>
+      :root {
+        --panel-bg: rgba(24, 23, 21, 0.92);
+        --panel-fg: #d8d2c6;
+        --panel-dim: #8a8378;
+        --panel-line: #3a3833;
+        --accent: #22ccee;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #131211; }
+      body { font: 13px/1.45 ui-monospace, "SF Mono", Menlo, monospace; color: var(--panel-fg); }
+      #stage { position: fixed; inset: 0; }
+      #stage canvas { display: block; }
+
+      /* Stage-plus-inspector: the 3D view dominates; ONE panel open at a
+         time on the right, the rest are tabs (observatory spec §8). */
+      #side {
+        position: fixed; top: 0; right: 0; bottom: 68px; width: 380px;
+        display: flex; flex-direction: column;
+        background: var(--panel-bg); border-left: 1px solid var(--panel-line);
+        transition: transform 0.15s ease;
+      }
+      #side.hidden { transform: translateX(100%); }
+      #tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--panel-line); }
+      #tabs button {
+        flex: 1 0 auto; padding: 7px 8px; background: none; border: none;
+        color: var(--panel-dim); font: inherit; font-size: 11px; cursor: pointer;
+        border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 0.06em;
+      }
+      #tabs button.active { color: var(--panel-fg); border-bottom-color: var(--accent); }
+      #panel { flex: 1; overflow-y: auto; padding: 10px 12px; }
+      #panel h3 { margin: 10px 0 4px; font-size: 12px; color: var(--panel-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+      #panel .row { padding: 4px 6px; border-radius: 3px; cursor: pointer; display: flex; gap: 8px; align-items: center; }
+      #panel .row:hover { background: rgba(255, 255, 255, 0.04); }
+      #panel .row.selected { background: rgba(34, 204, 238, 0.12); }
+      #panel .swatch { width: 14px; height: 14px; border-radius: 50%; flex: none; border: 2px solid transparent; }
+      #panel .dim { color: var(--panel-dim); }
+      #panel .mono { white-space: pre-wrap; word-break: break-word; }
+      #panel input[type="search"] {
+        width: 100%; padding: 5px 8px; margin: 6px 0; background: #131211;
+        border: 1px solid var(--panel-line); border-radius: 3px; color: var(--panel-fg); font: inherit;
+      }
+      #panel .memory { border-left: 2px solid var(--panel-line); padding: 3px 8px; margin: 4px 0; }
+      #panel .memory.reflection { border-left-color: var(--accent); font-style: italic; }
+      #panel .event { padding: 2px 6px; }
+      #panel .event .t { color: var(--panel-dim); margin-right: 6px; }
+      #panel table { border-collapse: collapse; width: 100%; }
+      #panel td, #panel th { padding: 3px 6px; text-align: left; border-bottom: 1px solid var(--panel-line); vertical-align: top; }
+      #panel .chain { margin: 4px 0 10px; padding-left: 10px; border-left: 2px solid var(--panel-line); }
+      #panel .ambiguous { color: #d0a24a; }
+
+      /* Ticker (spec v0.8 §5): one line above the transport, glanceable,
+         caught out of the corner of the eye. Recycled items dim slightly —
+         a quiet news day, not a broken instrument. */
+      #ticker {
+        position: fixed; left: 0; right: 0; bottom: 44px; height: 24px;
+        display: flex; align-items: center; overflow: hidden;
+        background: var(--panel-bg); border-top: 1px solid var(--panel-line);
+        font-size: 12px; white-space: nowrap;
+      }
+      #ticker .ticker-track { display: flex; gap: 28px; padding: 0 12px; }
+      #ticker .ticker-item { color: var(--panel-fg); }
+      #ticker .ticker-item.recycled { color: var(--panel-dim); }
+
+      /* Transport bar (observatory spec §7). */
+      #transport {
+        position: fixed; left: 0; right: 0; bottom: 0; height: 44px;
+        display: flex; align-items: center; gap: 10px; padding: 0 12px;
+        background: var(--panel-bg); border-top: 1px solid var(--panel-line);
+      }
+      #transport button {
+        background: none; border: 1px solid var(--panel-line); border-radius: 3px;
+        color: var(--panel-fg); font: inherit; padding: 3px 10px; cursor: pointer;
+      }
+      #transport button:hover { border-color: var(--panel-dim); }
+      #transport .clock { color: var(--panel-dim); min-width: 130px; }
+      #transport .source { margin-left: auto; color: var(--panel-dim); text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
+      #transport .source.live { color: #6fdc8c; }
+      #scrub { flex: 1; position: relative; height: 20px; display: none; }
+      #scrub input { width: 100%; margin: 0; position: relative; z-index: 2; }
+      #scrub .markers { position: absolute; inset: 8px 0; pointer-events: none; z-index: 1; }
+      #scrub .marker { position: absolute; top: 0; width: 2px; height: 5px; }
+      #scrub .marker.death { background: #c86450; }
+      #scrub .marker.birth { background: #6fdc8c; }
+      #scrub .marker.attack { background: #d0a24a; }
+      #scrub .marker.destruction { background: #b48ead; }
+      #scrub .marker.inscription { background: var(--accent); }
+
+      #hud { position: fixed; top: 10px; left: 12px; color: var(--panel-dim); font-size: 11px; pointer-events: none; }
+      #hover-label {
+        position: fixed; padding: 3px 8px; background: var(--panel-bg);
+        border: 1px solid var(--panel-line); border-radius: 3px; pointer-events: none;
+        display: none; font-size: 12px; z-index: 10;
+      }
+      #runpicker {
+        position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+        background: rgba(0, 0, 0, 0.6); z-index: 20;
+      }
+      #runpicker .box { background: var(--panel-bg); border: 1px solid var(--panel-line); border-radius: 6px; padding: 20px 24px; min-width: 360px; }
+      #runpicker button { display: block; width: 100%; margin: 6px 0; padding: 8px; background: none; border: 1px solid var(--panel-line); border-radius: 3px; color: var(--panel-fg); font: inherit; cursor: pointer; text-align: left; }
+      #runpicker button:hover { border-color: var(--accent); }
+      .hidden-ui #side, .hidden-ui #transport, .hidden-ui #hud, .hidden-ui #ticker { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="hud"></div>
+    <div id="hover-label"></div>
+    <div id="side">
+      <div id="tabs"></div>
+      <div id="panel"></div>
+    </div>
+    <div id="ticker"></div>
+    <div id="transport"></div>
+    <div id="runpicker"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

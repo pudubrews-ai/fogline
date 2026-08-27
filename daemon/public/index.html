@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fishbowl Observatory</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header id="topbar">
+    <h1>Fishbowl</h1>
+    <div id="clock">
+      <span id="sim-time">--:--</span>
+      <span id="tick-counter">tick 0</span>
+      <span id="phase-badge" class="phase">idle</span>
+      <span id="slot-badge" class="phase">slots 0/0</span>
+    </div>
+    <div id="controls">
+      <button id="btn-play" title="Play">&#9654;</button>
+      <button id="btn-pause" title="Pause">&#10073;&#10073;</button>
+      <button id="btn-step" title="Step one tick">&#8677;</button>
+      <select id="speed">
+        <option value="0.5">0.5&times;</option>
+        <option value="1" selected>1&times;</option>
+        <option value="2">2&times;</option>
+        <option value="5">5&times;</option>
+        <option value="20">20&times;</option>
+      </select>
+      <button id="btn-extend" title="Add 20 ticks and resume a completed run">+20 ticks</button>
+      <button id="btn-reset" title="Reset world">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="stage">
+      <div id="grid-wrap" class="panel">
+        <h2 id="grid-title">World</h2>
+        <p id="premise" class="dim"></p>
+        <div id="grid-status" hidden></div>
+        <div id="grid"><!-- N x N cells --></div>
+      </div>
+      <div id="side">
+        <div id="map-panel" class="panel">
+          <h2>Agent map <span class="hint">— the grid as one agent knows it</span></h2>
+          <select id="map-agent"><option value="">select an agent…</option></select>
+          <div id="map-grid"><!-- per-agent known map --></div>
+          <p id="map-legend" class="dim" hidden>■ visited &nbsp; · unvisited &nbsp; <span class="stale-mark">▲</span> stale snapshot</p>
+        </div>
+        <div id="roster-panel" class="panel">
+          <h2>Roster</h2>
+          <div id="roster-cards"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="lower">
+      <div id="memory-streams" class="panel">
+        <h2>Memory streams</h2>
+        <div id="memory-columns"><!-- one column per agent --></div>
+      </div>
+      <div id="feeds">
+        <div id="reg-panel" class="panel">
+          <h2>Registrations</h2>
+          <ol id="reg-feed" reversed></ol>
+        </div>
+        <div id="feed-panel" class="panel">
+          <h2>Events</h2>
+          <ol id="feed" reversed></ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="banner" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

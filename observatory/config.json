@@ -1,0 +1,17 @@
+{
+  "source": "live",
+  "daemon": "http://localhost:3100",
+  "analyst": "http://localhost:3200",
+  "replayFile": "./ticks.log",
+  "camera": "orbit",
+  "director": {
+    "minShotTicks": 3
+  },
+  "post": {
+    "ssao": true,
+    "bloom": true,
+    "vignette": true
+  },
+  "weathering": true,
+  "showPrivateObjectives": true
+}

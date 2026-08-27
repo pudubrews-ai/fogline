@@ -1,0 +1,66 @@
+{
+  "port": 3000,
+  "gridSize": 5,
+  "slots": 5,
+  "minAgents": 2,
+  "premise": "A shared plot of empty ground. Nothing is built yet. Whatever gets made here, someone has to make it.",
+  "minutesPerTick": 15,
+  "actionDeadlineMs": 20000,
+  "maxTicks": 400,
+  "startSimTime": "09:00",
+  "retrievalK": 5,
+  "reflectionThreshold": 40,
+  "stalledAfterMisses": 3,
+  "reapAfterTicks": 10,
+  "startPaused": true,
+  "operatorAuth": false,
+  "operatorToken": null,
+  "carryLimit": 12,
+  "maturityTicks": 20,
+  "begetVitalityCost": 20,
+  "begetResourceCost": {
+    "sivet": 4
+  },
+  "inscriptionMax": 500,
+  "attentionBudget": 6,
+  "viability": {
+    "targetRatio": 1.25,
+    "viabilityFloor": 1.0,
+    "minSpringsPerResource": 2
+  },
+  "resources": {
+    "seedDensity": 0.24,
+    "quantityRange": [
+      10,
+      20
+    ],
+    "regenPerTick": 0.45,
+    "distribution": "clustered"
+  },
+  "vitals": {
+    "sustenanceMax": 100,
+    "sustenanceDecayPerTick": 4,
+    "sivetRestores": 25,
+    "vitalityMax": 100,
+    "starvationDamagePerTick": 3,
+    "regenThreshold": 50,
+    "regenPerTick": 1,
+    "attackDamage": 25,
+    "attackCost": 6,
+    "sponsorDrainPerTick": 1,
+    "orphanDamagePerTick": 8
+  },
+  "destruction": {
+    "demolishTicks": 3,
+    "razeCost": 12,
+    "rubbleYieldDemolish": 6,
+    "rubbleYieldRaze": 2,
+    "rubbleRatio": 3
+  },
+  "genotype": {
+    "mutationRate": 0.2,
+    "hueJitter": 18,
+    "saturationCeiling": 0.35,
+    "divergenceRate": 0.03
+  }
+}
