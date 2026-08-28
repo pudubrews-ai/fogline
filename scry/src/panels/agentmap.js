@@ -45,7 +45,7 @@ export function renderAgentMap(el, state, ctx) {
 
   el.insertAdjacentHTML(
     "beforeend",
-    `<div class="dim">${agent.knownCells.size} of ${state.gridSize * state.gridSize} cells ever entered · ${staleCount} stale</div>`
+    `<div class="dim">${agent.knownCells.size} of ${state.cells.size} cells ever entered · ${staleCount} stale</div>`
   );
 
   rows.sort((a, b) => (a.coord < b.coord ? -1 : 1));

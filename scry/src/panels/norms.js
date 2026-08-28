@@ -20,6 +20,10 @@ export function collectActs(state) {
   for (const ev of state.events) {
     if (ev.type === "attack") {
       acts.push({ kind: "attack", tick: ev.tick, actor: ev.actor, target: ev.target, coord: ev.coord, ev });
+    } else if (ev.type === "take") {
+      // A take is not destruction (scry spec v0.9 §4): it belongs here, in
+      // the panel that would show whether theft produces retaliation.
+      acts.push({ kind: "take", tick: ev.tick, actor: ev.actor, target: ev.target, resource: ev.resource, coord: ev.coord, ev });
     } else if (ev.type === "raze" || ev.type === "demolish_complete") {
       acts.push({ kind: "destruction", tick: ev.tick, actor: ev.agentId, structureName: ev.name, coord: ev.coord, ev });
     }
@@ -35,14 +39,14 @@ const nameOf = (state, id) => state.agents.get(id)?.name ?? state.departed.get(i
 // mention, reported as such.
 function referenceLevel(text, act, state) {
   const t = String(text ?? "").toLowerCase();
-  if (act.kind === "attack") {
+  if (act.kind === "attack" || act.kind === "take") {
     const actor = (nameOf(state, act.actor) ?? "").toLowerCase();
     const target = (nameOf(state, act.target) ?? "").toLowerCase();
     const hasActor = actor && t.includes(actor);
     const hasTarget = target && t.includes(target);
-    const violent = /attack|struck|hit|hurt|violen|kill/.test(t);
-    if (hasActor && hasTarget && violent) return "full";
-    if ((hasActor || hasTarget) && violent) return "partial";
+    const marker = act.kind === "attack" ? /attack|struck|hit|hurt|violen|kill/ : /took|take|stole|steal/;
+    if (hasActor && hasTarget && marker.test(t)) return "full";
+    if ((hasActor || hasTarget) && marker.test(t)) return "partial";
     return null;
   }
   const name = (act.structureName ?? "").toLowerCase();
@@ -66,7 +70,8 @@ export function traceAct(state, act) {
   }
   // Destruction events also record presence explicitly.
   for (const id of act.ev.present ?? []) firstHand.add(id);
-  if (act.kind === "attack") {
+  for (const id of act.ev.witnesses ?? []) firstHand.add(id);
+  if (act.kind === "attack" || act.kind === "take") {
     firstHand.add(act.actor);
     firstHand.add(act.target);
   } else {
@@ -109,7 +114,7 @@ export function traceAct(state, act) {
   // Behavioral shift after acquiring the account: conduct toward the actor.
   const shifts = [];
   for (const [holderId, info] of holders) {
-    if (holderId === act.actor || info.remove === 0 && act.kind === "attack" && holderId === act.target) continue;
+    if (holderId === act.actor || info.remove === 0 && (act.kind === "attack" || act.kind === "take") && holderId === act.target) continue;
     const acquiredAt = info.remove === 0 ? act.tick : Math.min(...info.via.map((v) => v.tick));
     const givesBefore = state.events.filter((e) => e.type === "give" && e.from === holderId && e.to === act.actor && e.tick < acquiredAt).length;
     const givesAfter = state.events.filter((e) => e.type === "give" && e.from === holderId && e.to === act.actor && e.tick >= acquiredAt).length;
@@ -150,7 +155,9 @@ export function renderNorms(el, state) {
     const title =
       act.kind === "attack"
         ? `${esc(nameOf(state, act.actor))} attacked ${esc(nameOf(state, act.target))}`
-        : `${esc(nameOf(state, act.actor))} ${act.ev.type === "raze" ? "razed" : "demolished"} "${esc(act.structureName)}"`;
+        : act.kind === "take"
+          ? `${esc(nameOf(state, act.actor))} took 1 ${esc(act.resource)} from ${esc(nameOf(state, act.target))}`
+          : `${esc(nameOf(state, act.actor))} ${act.ev.type === "raze" ? "razed" : "demolished"} "${esc(act.structureName)}"`;
     const witnesses = [...firstHand].filter((id) => id !== act.actor).map((id) => esc(nameOf(state, id)));
     const derived = [...holders.entries()].filter(([, i]) => i.remove > 0);
     const chains = derived

@@ -39,7 +39,7 @@ export function renderLineage(el, state, ctx) {
       const meta = document.createElement("div");
       meta.className = "dim";
       meta.style.marginLeft = `${(depth + 1) * 18}px`;
-      meta.textContent = `└ born t${e.bornAtTick}${e.fosteredBy ? ` · raised by ${nameOf(e.fosteredBy)}` : ""}`;
+      meta.textContent = `└ born t${e.bornAtTick}${e.inherited ? " · inherited knowledge" : ""}${e.fosteredBy ? ` · raised by ${nameOf(e.fosteredBy)}` : ""}`;
       el.appendChild(meta);
       renderNode(e.child, depth + 1);
     }

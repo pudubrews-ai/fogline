@@ -78,7 +78,7 @@ function seedingPlan(world, rc, seeding, cellCount, rng) {
   if (byRatio) {
     const v = world.vitals;
     const expectedAgents = seeding.expectedAgents ?? world.slots.total;
-    const demand = (expectedAgents * (v.sustenanceDecayPerTick * seeding.maxTicks - v.sustenanceMax)) / v.sivetRestores;
+    const demand = (expectedAgents * (v.sustenanceDecayPerTick * seeding.maxTicks - v.sustenanceMax)) / (world.consumable?.restores ?? v.sivetRestores);
     const required = seeding.targetRatio * demand;
     const regenPerSpring = rc.regenPerTick * seeding.maxTicks;
     const avgQ = (qLo + qHi) / 2;
@@ -176,6 +176,9 @@ export function computeViability(world, maxTicks, expectedAgents = world.slots.t
   const v = world.vitals;
   const rc = world.resources;
   const slots = world.slots.total;
+  // v0.9: on a daemon world the restore amount lives on the consumable
+  // declaration; preview worlds still carry the legacy vitals key.
+  const restores = world.consumable?.restores ?? v.sivetRestores;
 
   let seededSivet = 0;
   let sivetSprings = 0;
@@ -186,18 +189,20 @@ export function computeViability(world, maxTicks, expectedAgents = world.slots.t
     }
   }
 
-  const demand = (expectedAgents * (v.sustenanceDecayPerTick * maxTicks - v.sustenanceMax)) / v.sivetRestores;
+  const demand = (expectedAgents * (v.sustenanceDecayPerTick * maxTicks - v.sustenanceMax)) / restores;
   const regenSupply = sivetSprings * rc.regenPerTick * maxTicks;
   const supply = seededSivet + regenSupply;
   const ratio = demand > 0 ? supply / demand : Infinity;
 
-  const capacity = (sivetSprings * rc.regenPerTick * v.sivetRestores) / v.sustenanceDecayPerTick;
+  const capacity = (sivetSprings * rc.regenPerTick * restores) / v.sustenanceDecayPerTick;
   const capacityMargin = capacity - expectedAgents;
   const deathsRequired = Math.max(0, expectedAgents - Math.floor(capacity));
 
+  // v0.9 fix 6.1, mirrored from the daemon: bounded by expectedAgents, the
+  // same agent count demand computes over — not by the slot count.
   const optimalSurvivors = Math.min(
-    slots,
-    capacity + (seededSivet * v.sivetRestores) / (v.sustenanceDecayPerTick * maxTicks)
+    expectedAgents,
+    capacity + (seededSivet * restores) / (v.sustenanceDecayPerTick * maxTicks)
   );
 
   return {

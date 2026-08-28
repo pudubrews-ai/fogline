@@ -720,7 +720,7 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
       });
       witness.eventTick = tick;
     }
-    hooks.beget?.({ tick, simTime, agentId, infantId: infant.id, coord: actor.coord, divergence: infant.heritage.divergence });
+    hooks.beget?.({ tick, simTime, agentId, infantId: infant.id, coord: actor.coord, divergence: infant.heritage.divergence, inherited: world.knowledgeInheritance === true });
   }
 
   for (const [agentId, rec] of actionsSorted("foster")) {

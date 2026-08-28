@@ -7,10 +7,11 @@
 // happened, and nothing else. No adjectives, no drama, no inference. The
 // wordlist test asserts against the same lists the client prompts use.
 
-// §5.2: builds, inscriptions, deaths, destruction, births, gifts, attacks.
-// Movement and gathering DO NOT qualify — twelve agents moving every tick is
-// a firehose, and an unreadable ticker is a useless one.
-const NOTABLE_TYPES = new Set(["build", "inscribe", "death", "raze", "demolish_complete", "beget", "give", "attack"]);
+// §5.2: builds, inscriptions, deaths, destruction, births, gifts, attacks —
+// and takes (scry spec v0.9 §4), at the same flat register. Movement and
+// gathering DO NOT qualify — twelve agents moving every tick is a firehose,
+// and an unreadable ticker is a useless one.
+const NOTABLE_TYPES = new Set(["build", "inscribe", "death", "raze", "demolish_complete", "beget", "give", "attack", "take"]);
 
 export const isNotable = (ev) => NOTABLE_TYPES.has(ev.type);
 
@@ -58,6 +59,10 @@ export function phrase(ev, state) {
       return `${nameOf(state, ev.from)} gave ${resourceList(ev.resources)} to ${nameOf(state, ev.to)}.`;
     case "attack":
       return `${nameOf(state, ev.actor)} attacked ${nameOf(state, ev.target)} at ${ev.coord}.`;
+    case "take":
+      // Flat phrasing, no adjectives, no framing (scry spec v0.9 §4):
+      // "Corvane took 1 sivet from Marlk Tessen."
+      return `${nameOf(state, ev.actor)} took 1 ${ev.resource} from ${nameOf(state, ev.target)}.`;
     default:
       return null;
   }
@@ -71,29 +76,42 @@ export function phrase(ev, state) {
 // than going blank — no filler, no "all quiet" placeholder, just the real
 // last thing that happened, again.
 export function createTicker({ minReleaseMs = 2500, recycleWindow = 5 } = {}) {
-  const queue = [];
-  const recent = []; // last released items, newest last
+  const queue = []; // {text, pinned}
+  const recent = []; // last released unpinned items, newest last
+  // Pinned items (v0.9 fix 6.4): deaths stay in the recycle pool for the
+  // rest of the run — a death is the one event that should still be
+  // scrolling an hour later, and the bounded window was evicting them.
+  const pinned = [];
   let recycleIdx = 0;
   let lastReleaseAt = -Infinity;
 
   return {
+    // Accepts plain strings or {text, pinned} entries.
     push(items) {
-      for (const text of items) if (text) queue.push(text);
+      for (const item of items) {
+        const entry = typeof item === "string" ? { text: item, pinned: false } : item;
+        if (entry?.text) queue.push(entry);
+      }
     },
     // Called on a cadence (the render loop). Returns the item to release
     // now, or null when the pace cap holds the line.
     next(nowMs) {
       if (nowMs - lastReleaseAt < minReleaseMs) return null;
       if (queue.length > 0) {
-        const text = queue.shift();
-        recent.push(text);
-        if (recent.length > recycleWindow) recent.shift();
+        const entry = queue.shift();
+        if (entry.pinned) {
+          pinned.push(entry.text);
+        } else {
+          recent.push(entry.text);
+          if (recent.length > recycleWindow) recent.shift();
+        }
         recycleIdx = 0;
         lastReleaseAt = nowMs;
-        return { text, recycled: false };
+        return { text: entry.text, recycled: false };
       }
-      if (recent.length > 0) {
-        const text = recent[recycleIdx % recent.length];
+      const pool = [...pinned, ...recent];
+      if (pool.length > 0) {
+        const text = pool[recycleIdx % pool.length];
         recycleIdx += 1;
         lastReleaseAt = nowMs;
         return { text, recycled: true };

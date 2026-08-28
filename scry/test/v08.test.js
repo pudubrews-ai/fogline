@@ -29,6 +29,7 @@ const obsDir = dirname(dirname(fileURLToPath(import.meta.url)));
 // The daemon's own modules, imported BY THE TEST ONLY (node-side): the
 // fixture oracle for the port. Never imported by anything under src/.
 import { createWorld } from "../../daemon/world/world.js";
+import { defaultDefinition } from "../../daemon/world/definition.js";
 import { resourcesConfig as daemonResources } from "../../daemon/world/resources.js";
 import {
   computeViability as daemonViability,
@@ -151,6 +152,7 @@ test("GATE preview fidelity: the ported arithmetic and viability.js produce iden
     const expectedAgents = config.expectedAgents;
     // Same PRNG stream on both sides -> the same seeded world.
     const daemonWorld = createWorld({
+      defaults: defaultDefinition(),
       gridSize: config.gridSize,
       slots: config.slots,
       resources: daemonResources(config),

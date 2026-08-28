@@ -29,6 +29,7 @@ import { renderCrosscheck } from "./panels/crosscheck.js";
 import { createTickerBar } from "./panels/tickerbar.js";
 import { tabTitle } from "./tabtitle.js";
 import { isNotable, phrase, itemsAroundTick } from "./ticker.js";
+import { cellHoverLines, believedHoverLines } from "./panels/cellhover.js";
 import { createReadonlyClient } from "./analyst/readonly.js";
 import { shouldConsult } from "./analyst/watch.js";
 import { buildContext } from "./analyst/retrieve.js";
@@ -230,7 +231,11 @@ function onState(next) {
     if (state.tick < tickerSeenTick) tickerSeenTick = 0; // reset/new run
     const fresh = state.events.filter((ev) => ev.tick > tickerSeenTick && isNotable(ev));
     tickerSeenTick = state.tick;
-    tickerBar.push(fresh.map((ev) => phrase(ev, state)).filter(Boolean));
+    tickerBar.push(
+      fresh
+        .map((ev) => ({ text: phrase(ev, state), pinned: ev.type === "death" }))
+        .filter((item) => item.text)
+    );
     maybeWatch();
   }
   refreshPanel();
@@ -446,10 +451,26 @@ stage.renderer.domElement.addEventListener("pointermove", (e) => {
     }
     if (label) break;
   }
+  // Cell hover (scry spec v0.9 §3): no agent or structure under the
+  // pointer — read the ground tile's cell out of reducer state. Under an
+  // agent-map overlay the tooltip shows what the SELECTED AGENT believes
+  // is there, marked stale; the true state stays on the panel's toggle.
+  if (!label) {
+    const tile = hits.find((h) => h.object.userData?.coord);
+    if (tile) {
+      const coord = tile.object.userData.coord;
+      const lines =
+        overlayKnown && ctx.selectedId
+          ? believedHoverLines(state, coord, ctx.selectedId)
+          : cellHoverLines(state, coord);
+      label = lines.join("\n");
+    }
+  }
   if (label) {
     hoverLabel.style.display = "block";
     hoverLabel.style.left = `${e.clientX + 12}px`;
     hoverLabel.style.top = `${e.clientY + 12}px`;
+    hoverLabel.style.whiteSpace = "pre-line";
     hoverLabel.textContent = label;
   } else {
     hoverLabel.style.display = "none";

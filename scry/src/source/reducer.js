@@ -48,8 +48,10 @@ const emptyCell = (coord) => ({ coord, deposit: null, loose: null, structure: nu
 
 function blankGrid(state) {
   state.cells = new Map();
-  for (let y = 0; y < state.gridSize; y++) {
-    for (let x = 0; x < state.gridSize; x++) {
+  const w = state.width ?? state.gridSize;
+  const h = state.height ?? state.gridSize;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
       const coord = `${x},${y}`;
       state.cells.set(coord, emptyCell(coord));
     }
@@ -61,7 +63,11 @@ function blankGrid(state) {
 export function applyRunStarted(state, line) {
   const fresh = createState();
   fresh.runId = line.runId ?? null;
-  fresh.gridSize = line.gridSize ?? 0;
+  // v0.9: worlds may be non-square (width/height); gridSize stays for
+  // square worlds and legacy records.
+  fresh.gridSize = line.gridSize ?? line.width ?? 0;
+  fresh.width = line.width ?? line.gridSize ?? 0;
+  fresh.height = line.height ?? line.gridSize ?? 0;
   fresh.premise = line.premise ?? null;
   fresh.carryLimit = line.carryLimit ?? null;
   fresh.maxTicks = line.maxTicks ?? null;
@@ -153,6 +159,9 @@ export function applyTick(state, rec) {
         child: ev.infantId,
         bornAtTick: ev.tick ?? rec.tick,
         fosteredBy: null,
+        // Knowledge inheritance (scry spec v0.9 §4): marked on the lineage
+        // node only — the inherited content is the child's memory now.
+        inherited: ev.inherited === true,
       });
     }
     if (ev.type === "foster") {
@@ -214,8 +223,13 @@ export function applyTick(state, rec) {
   //    copy, stale everywhere else. Fold from the authoritative cells above.
   for (const agent of state.agents.values()) {
     if (!(agent.knownCells instanceof Map)) agent.knownCells = new Map(agent.knownCells);
+    const seenCell = state.cells.get(agent.coord);
     agent.knownCells.set(agent.coord, {
-      structure: cloneStructure(state.cells.get(agent.coord)?.structure ?? null),
+      structure: cloneStructure(seenCell?.structure ?? null),
+      // v0.9 cell hover: the believed deposit and loose pile as of this
+      // stand — what "Rook last saw here" is made of.
+      deposit: seenCell?.deposit ? { ...seenCell.deposit } : null,
+      loose: seenCell?.loose ? { ...seenCell.loose } : null,
       lastSeenTick: rec.tick,
     });
   }
