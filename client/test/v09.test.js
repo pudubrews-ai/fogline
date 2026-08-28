@@ -6,7 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createSubprocessAdapter, faultDetail } from "../adapters/subprocess.js";
 import { complete as scriptedComplete } from "../adapters/scripted.js";
@@ -223,6 +224,32 @@ test("v0.9 test 4 — a full stub run completes with zero model calls and produc
     for (const s of sessions) await s.leave?.().catch(() => {});
     await daemon.close();
     rmSync(archiveDir, { recursive: true, force: true });
+  }
+});
+
+// ---------- fix 6.3: isolated CLI home ----------
+
+test("v0.9 fix 6.3 — an isolatedHome vendor gets its own home dir, seeded with the named credentials, via its env var", async () => {
+  const sourceHome = mkdtempSync(join(tmpdir(), "fogline-fake-codex-home-"));
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(join(sourceHome, "auth.json"), JSON.stringify({ tokens: { account_id: "acct_test" } }));
+  const dir = `.credentials/test-isolated-home-${process.pid}`;
+  const adapter = createSubprocessAdapter({
+    ...nodeVendor(`console.log(JSON.stringify({ home: process.env.TEST_VENDOR_HOME }))`),
+    isolatedHome: { env: "TEST_VENDOR_HOME", source: sourceHome, copy: ["auth.json"], dir },
+  });
+  try {
+    const raw = await adapter.complete({ system: "s", user: "u", maxTokens: 100 });
+    const { home } = JSON.parse(raw);
+    assert.ok(home && home.endsWith(dir.split("/").pop()), "the env var points at the isolated home");
+    const seeded = JSON.parse(readFileSync(join(home, "auth.json"), "utf8"));
+    assert.equal(seeded.tokens.account_id, "acct_test", "the credential was seeded into the isolated home");
+    // The isolated home is INSIDE the gitignored credentials dir of the
+    // client package — never the shared vendor home.
+    assert.ok(!home.startsWith(sourceHome), "isolated from the shared home");
+  } finally {
+    rmSync(sourceHome, { recursive: true, force: true });
+    rmSync(join(dirname(fileURLToPath(import.meta.url)), "..", dir), { recursive: true, force: true });
   }
 });
 

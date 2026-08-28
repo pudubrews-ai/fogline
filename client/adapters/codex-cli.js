@@ -32,6 +32,15 @@ export const defaults = {
   versionArgs: ["--version"],
   // Non-secret, stable: the account id field — never the tokens beside it.
   account: { file: "~/.codex/auth.json", path: "tokens.account_id" },
+  // Isolated home (v0.9 fix 6.3): run 13 lost five agents when a newer
+  // codex elsewhere rewrote the SHARED ~/.codex models cache mid-run in a
+  // schema the pinned binary could not parse — every call exited 1 from
+  // tick ~141 and the agents starved holding food. Each fogline codex
+  // client now runs against its own CODEX_HOME under the gitignored
+  // credentials directory, seeded with auth.json alone; the pinned binary
+  // builds and owns every cache in it. Confirmed empirically (v0.147.0
+  // answers normally from a home holding only auth.json).
+  isolatedHome: { env: "CODEX_HOME", source: "~/.codex", copy: ["auth.json"], dir: ".credentials/codex-home" },
 };
 
 export const create = (overrides = {}) => createSubprocessAdapter({ ...defaults, ...overrides });

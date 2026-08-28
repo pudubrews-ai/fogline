@@ -36,7 +36,7 @@
 //                  ["--version"])
 
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, copyFileSync, statSync, readFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { join, dirname, resolve as resolvePath } from "node:path";
@@ -206,7 +206,48 @@ export function checkVersionPin(vendor) {
   });
 }
 
+// Isolated CLI home (v0.9 fix 6.3). Run 13's five codex clients all exited 1
+// on every call from tick ~141: a NEWER codex elsewhere on the machine
+// rewrote the shared ~/.codex/models_cache.json in a schema the pinned
+// binary could not parse ("missing field `supports_parallel_tool_calls`"),
+// and the pinned CLI died at startup before any model call — five agents
+// silent, starving while holding food. The fix is containment: give the
+// vendor its own home directory under the client package (gitignored),
+// seeded with ONLY the credential files it needs, so no other version's
+// cache writes can poison a run in flight. Confirmed empirically: codex
+// v0.147.0 with CODEX_HOME set to a directory holding only auth.json
+// answers normally and rebuilds its own caches there.
+function setupIsolatedHome(spec) {
+  const home = resolvePath(clientDir, spec.dir);
+  mkdirSync(home, { recursive: true });
+  const source = spec.source.replace(/^~(?=\/|$)/, homedir());
+  for (const name of spec.copy ?? []) {
+    const from = join(source, name);
+    const to = join(home, name);
+    try {
+      const srcStat = statSync(from);
+      let copy = true;
+      try {
+        copy = statSync(to).mtimeMs < srcStat.mtimeMs;
+      } catch {
+        // not copied yet
+      }
+      if (copy) copyFileSync(from, to);
+    } catch {
+      // source credential absent — the spawn will fail with a classified
+      // fault and the reason on record, same as any missing credential
+    }
+  }
+  return home;
+}
+
 export function createSubprocessAdapter(vendor) {
+  // Resolved once per adapter: the isolated home persists across calls and
+  // runs, so the vendor's own caches warm normally — they just belong to
+  // this client alone.
+  const isolatedHomeEnv = vendor.isolatedHome
+    ? { [vendor.isolatedHome.env]: setupIsolatedHome(vendor.isolatedHome) }
+    : null;
   async function complete({ system, user, maxTokens, signal, model }) {
     const chosenModel = model ?? vendor.model ?? null;
     const nativeSystem = vendor.args.some((a) => a.includes("{system}"));
@@ -233,10 +274,10 @@ export function createSubprocessAdapter(vendor) {
 
     // Resolved before spawn so a missing credential file is a classified
     // adapter fault, not an anonymous rejection.
-    let spawnEnv = process.env;
+    let spawnEnv = isolatedHomeEnv ? { ...process.env, ...isolatedHomeEnv } : process.env;
     if (vendor.env) {
       try {
-        spawnEnv = { ...process.env, ...resolveVendorEnv(vendor.env) };
+        spawnEnv = { ...spawnEnv, ...resolveVendorEnv(vendor.env) };
       } catch (err) {
         rmSync(cwd, { recursive: true, force: true });
         const fail = new Error(`vendor env unresolvable: ${err.message}`);
