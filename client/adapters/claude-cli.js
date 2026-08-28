@@ -1,6 +1,6 @@
 // Claude Code CLI adapter — CONFIG ONLY over the subprocess base.
 // Every flag below was confirmed empirically before this file was written
-// (CLI-FINDINGS.md, claude 2.1.241: 2.9s wall, exit 0, pure JSON on stdout).
+// (confirmed empirically, claude 2.1.241: 2.9s wall, exit 0, pure JSON on stdout).
 // Subscription-billed via Claude Code's own OAuth login; never --bare, which
 // reads only ANTHROPIC_API_KEY and would defeat the point.
 
@@ -29,7 +29,7 @@ export const defaults = {
   richModel: "claude-sonnet-5",
   budgetFactor: 0.75,
   surface: "claude-cli:sub",
-  // Version pin (client spec v0.7 §3.1, CLI-FINDINGS.md): 2.1.241 confirmed
+  // Version pin (client spec v0.7 §3.1): 2.1.241 confirmed empirically
   // at v0.5; drifted to 2.1.246 by the v0.7 pin, re-confirmed live.
   pinnedVersion: "2.1.246",
   versionArgs: ["--version"],

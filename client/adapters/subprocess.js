@@ -8,7 +8,7 @@
 // exposes an output cap; the budget abort bounds runtime instead.
 //
 // Vendor config (empirically confirmed per vendor BEFORE being written —
-// see CLI-FINDINGS.md):
+// in each adapter's header comment):
 //   cmd            executable name
 //   args           argv template; tokens: {system} (native system-prompt
 //                  flag), {model} (model id; the token AND its preceding
@@ -30,7 +30,7 @@
 //                  GLM surface (client spec v0.7 §2): the same claude
 //                  binary against a different endpoint IS a config entry.
 //   pinnedVersion  the confirmed-working CLI version (client spec v0.7
-//                  §3.1, recorded in CLI-FINDINGS.md); checked at startup,
+//                  §3.1, recorded in the adapter header); checked at startup,
 //                  a mismatch warns loudly and never refuses
 //   versionArgs    argv that makes the CLI print its version (default
 //                  ["--version"])

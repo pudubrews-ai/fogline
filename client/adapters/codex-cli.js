@@ -1,6 +1,6 @@
 // Codex CLI adapter — CONFIG ONLY over the subprocess base.
-// Flags confirmed empirically before this file was written (CLI-FINDINGS.md,
-// codex-cli 0.147.0: 4.3s wall, exit 0, banner on stderr, final message
+// Flags confirmed empirically before this file was written
+// (codex-cli 0.147.0: 4.3s wall, exit 0, banner on stderr, final message
 // alone on stdout). ChatGPT-subscription OAuth.
 //
 // Codex has no tools-off switch: containment is the read-only sandbox plus
@@ -27,7 +27,7 @@ export const defaults = {
   model: null, // vendor default (user config) unless overridden
   budgetFactor: 0.6,
   surface: "codex-cli:sub",
-  // Version pin (client spec v0.7 §3.1, CLI-FINDINGS.md).
+  // Version pin (client spec v0.7 §3.1), confirmed empirically.
   pinnedVersion: "0.147.0",
   versionArgs: ["--version"],
   // Non-secret, stable: the account id field — never the tokens beside it.

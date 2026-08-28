@@ -1,6 +1,6 @@
 // Kimi Code CLI adapter — CONFIG ONLY over the subprocess base.
-// Flags confirmed empirically before this file was written (CLI-FINDINGS.md,
-// kimi 0.38.0: 8.2s wall, exit 0, response bullet-prefixed on stdout —
+// Flags confirmed empirically before this file was written
+// (kimi 0.38.0: 8.2s wall, exit 0, response bullet-prefixed on stdout —
 // the base adapter's preamble stripping is load-bearing here).
 //
 // No stdin mode: the prompt travels as the -p argument ({prompt}). No

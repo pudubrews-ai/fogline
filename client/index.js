@@ -218,7 +218,7 @@ export function versionDriftWarning(pin, cmd) {
   if (pin.matches) return null;
   return (
     `[VERSION PIN] ${cmd} reports ${pin.actual ?? "no version"} but ` +
-    `${pin.pinned} is the confirmed-working pin (CLI-FINDINGS.md) — ` +
+    `${pin.pinned} is the confirmed-working pin — ` +
     `run 8 died on exactly this drift; re-confirm the invocation before trusting a long run`
   );
 }

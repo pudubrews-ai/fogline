@@ -3,7 +3,7 @@
 // Code integration — the SAME claude binary, confirmed argv unchanged from
 // claude-cli, pointed at their Anthropic-compatible endpoint by environment.
 // Everything below was confirmed empirically before this file was written
-// (CLI-FINDINGS.md, 2026-08-25: glm-4.7 6.3s wall on a realistic prompt,
+// (empirically, 2026-08-25: glm-4.7 6.3s wall on a realistic prompt,
 // exit 0, response alone on stdout, warnings on stderr, none tripping
 // AUTH_RE).
 //
@@ -47,7 +47,7 @@ export const defaults = {
   // z.ai leaves no non-secret account identifier on disk (the key is a
   // credential, and the kimi precedent rejects hashing credentials). All
   // GLM clients read as the fixed 0000 surface — correct for a single-key
-  // setup; revisit if a second GLM account ever runs (CLI-FINDINGS.md).
+  // setup; revisit if a second GLM account ever runs.
   account: null,
   // The binary that can drift underneath this invocation is claude itself.
   pinnedVersion: "2.1.246",

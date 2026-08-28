@@ -3,7 +3,7 @@
 // stripping, surface fingerprints, per-adapter budgets, and the
 // three-vendor run. Stub commands stand in for vendor CLIs everywhere —
 // the real CLI invocations were confirmed empirically and recorded in
-// adapters/CLI-FINDINGS.md before the vendor configs were written.
+// each adapter's header before the vendor configs were written.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
