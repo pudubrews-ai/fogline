@@ -26,7 +26,25 @@ export function makeHeritageBrief(parentBody, tick, divergence) {
 export function beget(world, parent, tick, rng = Math.random) {
   const { appearance, divergence } = composeGenotype(parent.appearance, world.genotype, rng);
   const heritage = makeHeritageBrief(parent, tick, divergence);
-  return createInfant(world, { appearance, heritage, sponsorId: parent.id, coord: parent.coord }, tick);
+  const infant = createInfant(world, { appearance, heritage, sponsorId: parent.id, coord: parent.coord }, tick);
+  // Knowledge inheritance (engine spec v0.9 §5), off unless the world
+  // enables it: copy the parent's map as of this tick, snapshotted, and the
+  // failed-attempt record — the v0.6 record IS discovered-recipe state in
+  // structured form, and copied it renders through the same prompt path the
+  // parent's did. It pays the parent nothing, and the child is NOT told
+  // anything is inherited: a child stops being the only persistence channel
+  // that transmits nothing forward, which is parity with inscription, not
+  // an incentive. Deep copies, so parent and child diverge from here on.
+  if (world.knowledgeInheritance === true) {
+    for (const [coord, known] of parent.knownCells) {
+      infant.knownCells.set(coord, {
+        structureSnapshot: structuredClone(known.structureSnapshot),
+        lastSeenTick: known.lastSeenTick,
+      });
+    }
+    infant.failedAttempts.push(...structuredClone(parent.failedAttempts));
+  }
+  return infant;
 }
 
 // Fostering transfers sponsorship to the actor and appends the fosterer's

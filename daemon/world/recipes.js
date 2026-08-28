@@ -1,30 +1,22 @@
 // PRIVATE WORLD KNOWLEDGE (protocol §2, §8.2; daemon spec §3).
 //
-// This module is the recipe table. It MUST NOT be imported by anything under
-// api/, and no recipe may reach /scenario, an observation, or any other
-// client-visible response. The containment test greps the import graph; the
-// only sanctioned leak is a build shortfall, formatted here, naming ONLY the
-// missing amounts — never the full cost, never other forms.
+// v0.9: the recipe TABLE lives in the world definition (engine spec §2.4)
+// and rides on the world object; this module is the engine machinery that
+// reads it. The containment rule moved with the table: neither this module
+// nor the definition may be imported by anything under api/, and no recipe
+// may reach /scenario, an observation, or any other client-visible response.
+// The containment test greps the import graph; the only sanctioned leak is a
+// build shortfall, formatted here, naming ONLY the missing amounts — never
+// the full cost, never other forms.
 
-import { RESOURCE_TYPES } from "./resources.js";
-
-const RECIPES = Object.freeze({
-  marker: Object.freeze({ orrum: 1 }),
-  wall: Object.freeze({ orrum: 3, khal: 1 }),
-  platform: Object.freeze({ orrum: 4, khal: 1 }),
-  pit: Object.freeze({ orrum: 1, khal: 2 }),
-  hut: Object.freeze({ orrum: 5, khal: 2 }),
-  tower: Object.freeze({ orrum: 8, khal: 3 }),
-});
-
-export const recipeFor = (form) => RECIPES[form] ?? null;
+export const recipeFor = (world, form) => world.recipes[form] ?? null;
 
 // The median total material cost across all forms — a single aggregate for
 // the construction-slack ratio (daemon spec v0.6 §4). Deliberately not any
 // one form's cost: this number may appear in operator-side logs, and an
 // aggregate leaks no row of the table.
-export function typicalStructureCost() {
-  const totals = Object.values(RECIPES)
+export function typicalStructureCost(world) {
+  const totals = Object.values(world.recipes)
     .map((cost) => Object.values(cost).reduce((s, n) => s + n, 0))
     .sort((a, b) => a - b);
   const mid = totals.length / 2;
@@ -33,8 +25,8 @@ export function typicalStructureCost() {
 
 // null when the inventory covers the cost; otherwise a map of ONLY the
 // missing amounts. This is the discovery channel and its entire bandwidth.
-export function shortfall(form, inventory) {
-  const cost = RECIPES[form];
+export function shortfall(world, form, inventory) {
+  const cost = world.recipes[form];
   const missing = {};
   for (const [resource, needed] of Object.entries(cost)) {
     const gap = needed - (inventory[resource] ?? 0);
@@ -43,35 +35,46 @@ export function shortfall(form, inventory) {
   return Object.keys(missing).length > 0 ? missing : null;
 }
 
-// "short 2 orrum, 1 khal" — the exact wording of protocol §9.3.
-export function formatShortfall(missing) {
-  const parts = RESOURCE_TYPES.filter((r) => missing[r]).map((r) => `${missing[r]} ${r}`);
+// "short 2 orrum, 1 khal" — the exact wording of protocol §9.3. Ordered by
+// the world's resource list so the phrasing is deterministic.
+export function formatShortfall(world, missing) {
+  const parts = world.resourceTypes.filter((r) => missing[r]).map((r) => `${missing[r]} ${r}`);
   return `short ${parts.join(", ")}`;
 }
 
 // Materials are consumed only on success, by the resolver, through this.
-export function consumeMaterials(form, inventory) {
-  for (const [resource, needed] of Object.entries(RECIPES[form])) {
+export function consumeMaterials(world, form, inventory) {
+  for (const [resource, needed] of Object.entries(world.recipes[form])) {
     inventory[resource] -= needed;
   }
 }
 
-// v0.4 build resolution with rubble substitution (protocol §8.2, daemon spec
-// §3.5). Rubble covers an orrum gap at rubbleRatio, automatically, and the
+// v0.4 build resolution with byproduct substitution (protocol §8.2, daemon
+// spec §3.5). The world's byproduct covers a gap in the resource it declares
+// it substitutes for, at its declared ratio, automatically — and the
 // substitution is reported ONLY on success. The failure branch computes the
-// shortfall from primary materials alone — rubble never enters a failure
-// message, because a helpful failure would hand agents the discovery.
-export function buildPlan(form, inventory, rubbleRatio) {
-  const missing = shortfall(form, inventory);
+// shortfall from primary materials alone — the byproduct never enters a
+// failure message, because a helpful failure would hand agents the discovery.
+export function buildPlan(world, form, inventory) {
+  const recipe = world.recipes[form];
+  const missing = shortfall(world, form, inventory);
   if (missing === null) {
-    return { ok: true, consume: { ...RECIPES[form] }, substitution: null };
+    return { ok: true, consume: { ...recipe }, substitution: null };
   }
-  const orrumGap = missing.orrum ?? 0;
-  const onlyOrrumMissing = Object.keys(missing).every((r) => r === "orrum");
-  const rubbleNeeded = orrumGap * rubbleRatio;
-  if (onlyOrrumMissing && orrumGap > 0 && (inventory.rubble ?? 0) >= rubbleNeeded) {
-    const consume = { ...RECIPES[form], orrum: RECIPES[form].orrum - orrumGap, rubble: rubbleNeeded };
-    return { ok: true, consume, substitution: { rubble: rubbleNeeded, orrum: orrumGap } };
+  const byproduct = world.byproduct;
+  if (byproduct) {
+    const target = byproduct.substitutesFor;
+    const targetGap = missing[target] ?? 0;
+    const onlyTargetMissing = Object.keys(missing).every((r) => r === target);
+    const byproductNeeded = targetGap * byproduct.ratio;
+    if (onlyTargetMissing && targetGap > 0 && (inventory[byproduct.name] ?? 0) >= byproductNeeded) {
+      const consume = { ...recipe, [target]: recipe[target] - targetGap, [byproduct.name]: byproductNeeded };
+      return {
+        ok: true,
+        consume,
+        substitution: { byproduct: byproduct.name, byproductAmount: byproductNeeded, target, targetAmount: targetGap },
+      };
+    }
   }
   return { ok: false, missing };
 }

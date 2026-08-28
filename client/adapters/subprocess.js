@@ -39,7 +39,8 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname, resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Auth failure is the classification that matters: an expired session must
 // not read in-world as a pensive agent for two hundred ticks. Tight enough
@@ -48,6 +49,42 @@ const AUTH_RE =
   /not logged in|login required|please (run|use) [^\n]{0,40}log ?in|unauthorized|authentication (failed|required|error)|invalid api key|token (has )?expired|\b401\b/i;
 
 const firstLine = (text) => String(text ?? "").trim().split("\n")[0].slice(0, 200);
+
+// Classified fault detail (client spec v0.9 §3). The old diagnostic path
+// kept exactly the line the extraction path discards: stderr line ONE — for
+// codex its version banner, for run 8's kimi failure the same shape — so the
+// classification fired correctly twice while the reason was thrown away.
+// Strip the banner, keep the remainder, cap at ~500 chars rather than
+// truncating to one line: quota and auth messages are one or two sentences
+// and they are precisely what is needed.
+const FAULT_DETAIL_MAX = 500;
+const SEMVER_RE = /\bv?\d+\.\d+\.\d+(?:[-+][\w.]+)?\b/;
+const DIAGNOSTIC_RE = /error|fail|denied|exceed|quota|limit|invalid|expired|unauthorized|forbidden|not logged in|login|timeout|refused/i;
+
+// A banner line: short, carries a bare version stamp, says nothing
+// diagnostic. "kimi version 0.38.0" and a codex version banner both match;
+// "token expired (client v1.2.3)" does not.
+function isBannerLine(line) {
+  const t = line.trim();
+  if (t.length === 0) return true; // leading blank lines strip with the banner
+  if (t.length > 100) return false;
+  if (!SEMVER_RE.test(t)) return false;
+  return !DIAGNOSTIC_RE.test(t);
+}
+
+// The stripped, capped diagnostic remainder — or null when nothing survives,
+// which the caller records EXPLICITLY: "non-zero exit, no diagnostic output"
+// is a fact worth recording rather than a blank.
+export function faultDetail(stderr, stdout) {
+  const raw = String((stderr ?? "").trim() ? stderr : (stdout ?? "")).trim();
+  if (raw.length === 0) return null;
+  const lines = raw.split("\n");
+  let start = 0;
+  while (start < lines.length && isBannerLine(lines[start])) start += 1;
+  const rest = lines.slice(start).join("\n").trim();
+  if (rest.length === 0) return null;
+  return rest.length > FAULT_DETAIL_MAX ? rest.slice(0, FAULT_DETAIL_MAX) : rest;
+}
 
 // Balanced-brace scan honoring JSON strings: the outermost {...} starting at
 // `start`, or null if never closed.
@@ -118,14 +155,29 @@ export function accountFingerprint(account) {
   }
 }
 
-// Resolve a vendor env map: literal strings pass through; {file} values are
-// read (trimmed) at spawn time so credentials stay out of argv and config.
+// Resolve a vendor env map: literal strings pass through; {env, file}
+// values resolve at spawn time so credentials stay out of argv and config.
+// Precedence (client spec v0.9 §6): the named environment variable if set,
+// else the fallback file — resolved against the CLIENT directory when
+// relative, so the gitignored fallback lives inside the package rather than
+// defaulting to somebody's Downloads folder. Not a secrecy fix — a
+// usability tell, closed before it ships this way.
+const clientDir = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
+
 function resolveVendorEnv(envSpec) {
   if (!envSpec) return null;
   const resolved = {};
   for (const [name, value] of Object.entries(envSpec)) {
-    if (value !== null && typeof value === "object" && value.file) {
-      const file = value.file.replace(/^~(?=\/|$)/, homedir());
+    if (value !== null && typeof value === "object" && (value.env || value.file)) {
+      if (value.env && process.env[value.env]) {
+        resolved[name] = process.env[value.env].trim();
+        continue;
+      }
+      if (!value.file) {
+        throw new Error(`env ${name}: ${value.env} is unset and no fallback file is declared`);
+      }
+      const expanded = value.file.replace(/^~(?=\/|$)/, homedir());
+      const file = resolvePath(clientDir, expanded);
       resolved[name] = readFileSync(file, "utf8").trim();
     } else {
       resolved[name] = String(value);
@@ -251,11 +303,12 @@ export function createSubprocessAdapter(vendor) {
         // stderr, or no output at all without a timeout. An expired session
         // hangs or errors oddly rather than failing cleanly.
         if (AUTH_RE.test(stderr)) {
-          fault(`auth failure: ${firstLine(stderr)}`);
+          fault(`auth failure: ${faultDetail(stderr, stdout) ?? firstLine(stderr)}`);
           return;
         }
         if (code !== 0) {
-          fault(`exit ${code}: ${firstLine(stderr || stdout)}`);
+          const detail = faultDetail(stderr, stdout);
+          fault(`exit ${code}: ${detail ?? "non-zero exit, no diagnostic output"}`);
           return;
         }
         if (stdout.trim().length === 0) {

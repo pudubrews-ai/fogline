@@ -7,7 +7,6 @@
 export const VITALS_DEFAULTS = {
   sustenanceMax: 100,
   sustenanceDecayPerTick: 1,
-  sivetRestores: 25,
   vitalityMax: 100,
   starvationDamagePerTick: 3,
   regenThreshold: 50,

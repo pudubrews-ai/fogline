@@ -1,3 +1,4 @@
+import { defaultDefinition } from "../world/definition.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -12,7 +13,7 @@ import { simTimeAtTick } from "../engine/clock.js";
 import { makeWorld, addAgentAt, persona } from "./helpers.js";
 
 test("grid: all N² cells exist at boot with structure null, never lazily created", () => {
-  const world = createWorld({ gridSize: 4, slots: 5 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 5 });
   assert.equal(world.cells.size, 16);
   for (const cell of world.cells.values()) assert.equal(cell.structure, null);
   assert.equal(world.agents.size, 0, "the world boots with zero agents");
@@ -20,7 +21,7 @@ test("grid: all N² cells exist at boot with structure null, never lazily create
 });
 
 test("adjacency is computed: corner 2, edge 3, center 4, no diagonals, no wrapping", () => {
-  const world = createWorld({ gridSize: 4, slots: 5 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 5 });
   const dirs = (coord) => exitsFor(world, coord).map((e) => `${e.direction}:${e.coord}`);
   assert.deepEqual(dirs("0,0"), ["east:1,0", "south:0,1"], "northwest corner");
   assert.deepEqual(dirs("3,3"), ["north:3,2", "west:2,3"], "southeast corner");

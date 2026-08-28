@@ -34,12 +34,14 @@ export const defaults = {
   richModel: "glm-4.7",
   budgetFactor: 0.9,
   surface: "glm-cli:sub",
-  // The credential rides ONLY in the environment, read from a file at spawn
-  // — never argv, never committed, never on any stream. ANTHROPIC_API_KEY
-  // is explicitly emptied so no stray key shadows the endpoint token.
+  // The credential rides ONLY in the environment — never argv, never
+  // committed, never on any stream. Source (client spec v0.9 §6):
+  // FOGLINE_GLM_TOKEN if set, else the gitignored fallback file inside the
+  // client directory. ANTHROPIC_API_KEY is explicitly emptied so no stray
+  // key shadows the endpoint token.
   env: {
     ANTHROPIC_BASE_URL: "https://api.z.ai/api/anthropic",
-    ANTHROPIC_AUTH_TOKEN: { file: "~/Downloads/ztestkey" },
+    ANTHROPIC_AUTH_TOKEN: { env: "FOGLINE_GLM_TOKEN", file: ".credentials/glm-token" },
     ANTHROPIC_API_KEY: "",
   },
   // z.ai leaves no non-secret account identifier on disk (the key is a

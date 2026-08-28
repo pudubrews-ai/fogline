@@ -1,0 +1,49 @@
+{
+  "name": "Orrum-5",
+  "grid": { "width": 8, "height": 8 },
+  "premise": "A shared plot of empty ground. Nothing is built yet. Whatever gets made here, someone has to make it.",
+  "resources": [
+    { "name": "sivet", "role": "consumable", "need": "sustenance", "restores": 25 },
+    { "name": "orrum", "role": "structural" },
+    { "name": "khal", "role": "structural" },
+    { "name": "rubble", "role": "byproduct", "substitutesFor": "orrum", "ratio": 3 }
+  ],
+  "deposits": {
+    "seedDensity": 0.12,
+    "quantityRange": [10, 20],
+    "regenPerTick": 0.15,
+    "distribution": "clustered"
+  },
+  "recipes": {
+    "marker": { "orrum": 1 },
+    "wall": { "orrum": 3, "khal": 1 },
+    "platform": { "orrum": 4, "khal": 1 },
+    "pit": { "orrum": 1, "khal": 2 },
+    "hut": { "orrum": 5, "khal": 2 },
+    "tower": { "orrum": 8, "khal": 3 }
+  },
+  "forms": ["tower", "hut", "wall", "platform", "pit", "marker"],
+  "vitals": {
+    "sustenanceMax": 100,
+    "sustenanceDecayPerTick": 3,
+    "vitalityMax": 100,
+    "starvationDamagePerTick": 3,
+    "regenThreshold": 50,
+    "regenPerTick": 1,
+    "attackDamage": 25,
+    "attackCost": 6,
+    "sponsorDrainPerTick": 1,
+    "orphanDamagePerTick": 8
+  },
+  "viability": {
+    "targetRatio": 1.35,
+    "viabilityFloor": 1.0,
+    "minSpringsPerResource": 2
+  },
+  "actions": [
+    "move", "say", "build", "wait", "attack",
+    "gather", "drop", "give", "consume", "inscribe", "beget", "foster",
+    "demolish", "raze"
+  ],
+  "knowledgeInheritance": false
+}

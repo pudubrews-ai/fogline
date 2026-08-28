@@ -36,7 +36,7 @@ test("shortfall leak bound: a failed build names only the missing amounts, never
   // The outcome must not reveal the full cost of tower or any other form.
   // Anchored to the resource pairing, not a bare digit — a raw digit scan
   // can collide with any number that happens to share the character.
-  const cost = recipeFor("tower");
+  const cost = recipeFor(world, "tower");
   assert.ok(!new RegExp(`\\b${cost.orrum} orrum\\b`).test(a.lastActionOutcome.why), "full orrum cost not leaked");
   assert.ok(!new RegExp(`\\b${cost.khal} khal\\b`).test(a.lastActionOutcome.why), "full khal cost not leaked");
 });

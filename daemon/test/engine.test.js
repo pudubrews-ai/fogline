@@ -1,3 +1,4 @@
+import { defaultDefinition } from "../world/definition.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createWorld, createAgent, snapshotCurrentCell } from "../world/world.js";
@@ -25,7 +26,7 @@ const baseConfig = {
 function makeEngine(configOverrides = {}, agentDefs = [{ name: "Rune", coord: "0,0" }, { name: "Devi", coord: "3,3" }], { barrier = [], connect = ["Rune", "Devi"] } = {}) {
   const config = { ...baseConfig, ...configOverrides };
   const engine = new TickEngine({
-    worldFactory: () => createWorld({ gridSize: config.gridSize, slots: config.slots }),
+    worldFactory: () => createWorld({ defaults: defaultDefinition(),  gridSize: config.gridSize, slots: config.slots }),
     config,
     barrierLog: (line) => barrier.push(line),
   });
@@ -111,7 +112,7 @@ test("minAgents gate: the engine does not open tick 1 until enough agents are re
   const barrier = [];
   const config = { ...baseConfig, minAgents: 2, maxTicks: 3 };
   const engine = new TickEngine({
-    worldFactory: () => createWorld({ gridSize: 4, slots: 6 }),
+    worldFactory: () => createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 6 }),
     config,
     barrierLog: (line) => barrier.push(line),
   });

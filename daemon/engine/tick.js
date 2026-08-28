@@ -10,31 +10,31 @@ import { captureRoster, resolveTick } from "./resolve.js";
 import { computeSituations } from "../world/situation.js";
 import { writePerceptions } from "../world/memory.js";
 import { buildObservation } from "../world/observe.js";
-import { STRUCTURE_FORMS, hasControlChars, releaseAgent } from "../world/world.js";
-import { RESOURCE_TYPES } from "../world/resources.js";
+import { hasControlChars, releaseAgent } from "../world/world.js";
 import { computeViability, computeConstructionSlack } from "../world/viability.js";
 import { typicalStructureCost } from "../world/recipes.js";
+import { defaultDefinition, ENGINE_ACTION_TYPES } from "../world/definition.js";
 
-const ACTION_TYPES = new Set([
-  "move", "say", "build", "wait", "attack",
-  "gather", "drop", "give", "consume", "inscribe", "beget", "foster",
-  "demolish", "raze",
-]);
+// Every action the ENGINE knows how to resolve. Which of them exist in a
+// given world is the world definition's declaration (engine spec v0.9 §3):
+// worlds declare WHICH, the engine declares HOW.
+const ACTION_TYPES = ENGINE_ACTION_TYPES;
 // Reserved, not unknown: rejected, never silently coerced (protocol §10).
 const RESERVED_TYPES = new Set(["modify"]);
 
 export const STRUCTURE_LIMITS = { name: 40, description: 300 };
 
-// A resource map is {sivet?, orrum?, khal?} with positive integers and at
-// least one entry. Returns an error detail string, or null when valid.
-function badResourceMap(resources, forAction) {
+// A resource map ({<name>: n, ...} over the world's resource names) with
+// positive integers and at least one entry. Returns an error detail string,
+// or null when valid.
+function badResourceMap(resources, forAction, resourceTypes) {
   if (resources === null || typeof resources !== "object" || Array.isArray(resources)) {
     return `resources is required for ${forAction}`;
   }
   const keys = Object.keys(resources);
   if (keys.length === 0) return `resources must name at least one resource for ${forAction}`;
   for (const key of keys) {
-    if (!RESOURCE_TYPES.includes(key)) return `unknown resource "${key}"`;
+    if (!resourceTypes.includes(key)) return `unknown resource "${key}"`;
     if (!Number.isInteger(resources[key]) || resources[key] < 1) {
       return `resources.${key} must be a positive integer`;
     }
@@ -45,8 +45,16 @@ function badResourceMap(resources, forAction) {
 // Structural validation (protocol §10). Returns {error, detail} on schema
 // violation, otherwise {action, coercedWait, coerceReason}. Unknown types,
 // bad move destinations, and blocked builds are NOT schema violations — they
-// resolve to wait at resolution time.
-export function validateAction(payload, config = {}) {
+// resolve to wait at resolution time. An action the engine knows but the
+// world does not declare is REJECTED, never silently coerced — the same
+// treatment `demolish` and `modify` received while reserved (engine spec
+// v0.9 §3). `world` supplies forms, resource names, and the enabled action
+// set; absent one (direct unit-test calls), the default world's stand in.
+export function validateAction(payload, config = {}, world = null) {
+  const defaults = world === null ? defaultDefinition() : null;
+  const forms = world?.forms ?? defaults.forms;
+  const resourceTypes = world?.resourceTypes ?? defaults.resourceTypes;
+  const enabledActions = world?.enabledActions ?? defaults.actions;
   if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
     return { error: true, detail: "body must be a JSON object" };
   }
@@ -79,6 +87,12 @@ export function validateAction(payload, config = {}) {
   if (RESERVED_TYPES.has(type)) {
     return { error: true, detail: `"${type}" is reserved` };
   }
+  // Action toggles (engine spec v0.9 §3): the engine resolves it, but this
+  // world does not declare it — rejected outright, exactly like a reserved
+  // type, and never rendered in a client prompt.
+  if (ACTION_TYPES.has(type) && !enabledActions.has(type)) {
+    return { error: true, detail: `"${type}" is not part of this world` };
+  }
   if (!ACTION_TYPES.has(type)) {
     // Protocol §10: unknown types resolve to wait and are logged.
     return {
@@ -103,8 +117,8 @@ export function validateAction(payload, config = {}) {
     if (structure === null || typeof structure !== "object" || Array.isArray(structure)) {
       return { error: true, detail: "structure is required for build" };
     }
-    if (!STRUCTURE_FORMS.includes(structure.form)) {
-      return { error: true, detail: `structure.form must be one of: ${STRUCTURE_FORMS.join(", ")}` };
+    if (!forms.includes(structure.form)) {
+      return { error: true, detail: `structure.form must be one of: ${forms.join(", ")}` };
     }
     if (typeof structure.name !== "string" || structure.name.length < 1 || structure.name.length > STRUCTURE_LIMITS.name) {
       return { error: true, detail: `structure.name must be 1-${STRUCTURE_LIMITS.name} chars` };
@@ -140,17 +154,28 @@ export function validateAction(payload, config = {}) {
     if (resources != null || resource != null) return { error: true, detail: "attack carries no resources" };
   } else if (type === "give") {
     if (typeof target !== "string" || target.length === 0) return { error: true, detail: "target is required for give" };
-    const bad = badResourceMap(resources, "give");
+    const bad = badResourceMap(resources, "give", resourceTypes);
     if (bad) return { error: true, detail: bad };
   } else if (type === "drop") {
     if (target != null) return { error: true, detail: "target must be null unless the action takes one" };
-    const bad = badResourceMap(resources, "drop");
+    const bad = badResourceMap(resources, "drop", resourceTypes);
     if (bad) return { error: true, detail: bad };
   } else if (type === "consume") {
-    if (!RESOURCE_TYPES.includes(resource)) {
-      return { error: true, detail: `resource must be one of: ${RESOURCE_TYPES.join(", ")}` };
+    if (!resourceTypes.includes(resource)) {
+      return { error: true, detail: `resource must be one of: ${resourceTypes.join(", ")}` };
     }
     if (target != null || resources != null) return { error: true, detail: "consume takes only a resource" };
+  } else if (type === "take") {
+    // take (engine spec v0.9 §4): a co-located target and ONE resource name.
+    // One unit, always — no amount field exists to ask for more.
+    if (typeof target !== "string" || target.length === 0) return { error: true, detail: "target is required for take" };
+    if (!resourceTypes.includes(resource)) {
+      return { error: true, detail: `resource must be one of: ${resourceTypes.join(", ")}` };
+    }
+    if (coord != null) return { error: true, detail: "coord must be null unless type is move" };
+    if (text != null) return { error: true, detail: "text must be null unless type is say" };
+    if (structure != null) return { error: true, detail: "structure must be null unless type is build" };
+    if (resources != null) return { error: true, detail: "take takes a target and one resource" };
   } else {
     if (coord != null) return { error: true, detail: "coord must be null unless type is move" };
     if (text != null) return { error: true, detail: "text must be null unless type is say" };
@@ -167,7 +192,7 @@ export function validateAction(payload, config = {}) {
       structure: type === "build" ? { form: structure.form, name: structure.name, description: structure.description } : null,
       target: target ?? null,
       resources: type === "give" || type === "drop" ? { ...resources } : null,
-      resource: type === "consume" ? resource : null,
+      resource: type === "consume" || type === "take" ? resource : null,
       intent: intent ?? null,
       reason: reason ?? null,
       reflections: reflections ?? null,
@@ -269,7 +294,7 @@ export class TickEngine extends EventEmitter {
       this.world,
       this.config.maxTicks,
       expectedAgents,
-      typicalStructureCost()
+      typicalStructureCost(this.world)
     );
     const deposits = [];
     for (const cell of this.world.cells.values()) {
@@ -282,9 +307,12 @@ export class TickEngine extends EventEmitter {
       event: "run_started",
       runId: this.runId,
       configHash: crypto.createHash("sha256").update(JSON.stringify(this.config)).digest("hex").slice(0, 16),
+      world: this.world.name,
       gridSize: this.world.gridSize,
+      width: this.world.width,
+      height: this.world.height,
       slots: { ...this.world.slots },
-      premise: this.config.premise,
+      premise: this.world.premise ?? this.config.premise,
       maxTicks: this.config.maxTicks,
       startSimTime: this.config.startSimTime,
       minutesPerTick: this.config.minutesPerTick,
@@ -549,7 +577,7 @@ export class TickEngine extends EventEmitter {
       this.barrier("action_rejected", { tick: this.tick, agentId, code: "ALREADY_ACTED" });
       return { ok: false, code: "ALREADY_ACTED" };
     }
-    const v = validateAction(payload, this.config);
+    const v = validateAction(payload, this.config, this.world);
     if (v.error) {
       this.barrier("action_rejected", { tick: this.tick, agentId, code: "INVALID_ACTION", detail: v.detail });
       return { ok: false, code: "INVALID_ACTION", detail: v.detail };
@@ -661,6 +689,10 @@ export class TickEngine extends EventEmitter {
         this.wlog("invalid_move", d);
       },
       attack: ev("attack"),
+      take: ev("take"),
+      invalidTake: (d) => {
+        this.wlog("invalid_take", d);
+      },
       raze: ev("raze"),
       demolishProgress: ev("demolish_progress"),
       demolishComplete: ev("demolish_complete"),

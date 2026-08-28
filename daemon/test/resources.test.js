@@ -1,10 +1,10 @@
 // Deposits, clustering, regeneration, loose piles (daemon spec §2).
 
+import { defaultDefinition } from "../world/definition.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createWorld } from "../world/world.js";
 import {
-  RESOURCE_TYPES,
   addLoose,
   depositView,
   emptyInventory,
@@ -16,9 +16,10 @@ import {
 } from "../world/resources.js";
 
 const rc = resourcesConfig({});
+const RESOURCE_TYPES = defaultDefinition().resourceTypes;
 
 test("seeding: density respected, quantities in range, all three resources present", () => {
-  const world = createWorld({ gridSize: 8, slots: 5 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 8, slots: 5 });
   seedDeposits(world, rc);
   const deposits = [...world.cells.values()].filter((c) => c.deposit);
   assert.equal(deposits.length, Math.round(0.35 * 64));
@@ -36,7 +37,7 @@ test("clustered distribution is uneven: same-resource deposits are spatially adj
   // Distribution MUST be uneven (protocol §5.2). Measure: the mean distance
   // from a deposit to the nearest same-resource deposit must be far below
   // scattered's expectation. For clusters grown by adjacency it is ~1.
-  const world = createWorld({ gridSize: 8, slots: 5 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 8, slots: 5 });
   seedDeposits(world, { ...rc, distribution: "clustered" });
   const byResource = new Map(RESOURCE_TYPES.map((r) => [r, []]));
   for (const c of [...world.cells.values()].filter((c) => c.deposit)) {
@@ -58,7 +59,7 @@ test("clustered distribution is uneven: same-resource deposits are spatially adj
 });
 
 test("regeneration: fractional accumulation floors into quantity and caps at capacity", () => {
-  const world = createWorld({ gridSize: 2, slots: 2 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 2, slots: 2 });
   const cell = world.cells.get("0,0");
   cell.deposit = { resource: "orrum", quantity: 0, capacity: 5, regenAccum: 0 };
 
@@ -76,18 +77,18 @@ test("regeneration: fractional accumulation floors into quantity and caps at cap
 });
 
 test("loose piles merge and report only positive entries; never regenerate", () => {
-  const world = createWorld({ gridSize: 2, slots: 2 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 2, slots: 2 });
   const cell = world.cells.get("1,1");
   assert.equal(looseView(cell), null);
-  addLoose(cell, { sivet: 2 });
-  addLoose(cell, { sivet: 1, khal: 3 });
+  addLoose(cell, { sivet: 2 }, RESOURCE_TYPES);
+  addLoose(cell, { sivet: 1, khal: 3 }, RESOURCE_TYPES);
   assert.deepEqual(looseView(cell), { sivet: 3, khal: 3 });
   regenerateDeposits(world, rc);
   assert.deepEqual(looseView(cell), { sivet: 3, khal: 3 }, "regen never touches loose piles");
 });
 
 test("inventory arithmetic", () => {
-  const inv = emptyInventory();
+  const inv = emptyInventory(RESOURCE_TYPES);
   assert.deepEqual(inv, { sivet: 0, orrum: 0, khal: 0, rubble: 0 });
   inv.orrum = 4;
   inv.khal = 1;

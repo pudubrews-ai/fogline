@@ -169,9 +169,10 @@ export function writePerceptions(world, tick, simTime) {
       if (cell.structure) {
         readEntries(cell.structure.inscription?.entries ?? [], cell.structure.authored.name);
       }
-      // A demolition fragment (protocol §9.1) reads the same way.
+      // A demolition fragment (protocol §9.1) reads the same way. The pile
+      // it rides is the world's byproduct, named by the definition.
       if (cell.fragment) {
-        readEntries(cell.fragment.entries ?? [], "a broken fragment in the rubble");
+        readEntries(cell.fragment.entries ?? [], `a broken fragment in the ${world.byproduct?.name ?? "debris"}`);
       }
     }
   }

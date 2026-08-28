@@ -4,6 +4,7 @@
 // and append-only inscriptions — append never alters, budgets are
 // permanent, raze is the only erasure, attribution is in-world.
 
+import { defaultDefinition } from "../world/definition.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -48,9 +49,10 @@ test("GATE expectedAgents: 12 slots and 5 expected agents compute demand over 5;
     const cfg = daemon.config;
     assert.equal(v.expectedAgents, 5);
     assert.equal(v.slots, 12);
+    const w = daemon.engine.world;
     const expectedDemand =
-      (5 * (cfg.vitals.sustenanceDecayPerTick * cfg.maxTicks - cfg.vitals.sustenanceMax)) /
-      cfg.vitals.sivetRestores;
+      (5 * (w.vitals.sustenanceDecayPerTick * cfg.maxTicks - w.vitals.sustenanceMax)) /
+      w.consumable.restores;
     assert.ok(Math.abs(v.demand - expectedDemand) < 1e-9, `demand ${v.demand} over 5 expected agents, not 12 slots`);
   } finally {
     await daemon.close(); // flushes the log streams
@@ -71,13 +73,13 @@ test("GATE expectedAgents: 12 slots and 5 expected agents compute demand over 5;
 test("GATE construction slack: a world passing the subsistence floor but unable to afford building reads below 1, logged and exposed", async () => {
   // Plenty of sivet (subsistence passes), almost no building material, and
   // the one material deposit far from the springs.
-  const world = createWorld({ gridSize: 8, slots: 5 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 8, slots: 5 });
   world.cells.get("0,0").deposit = { resource: "sivet", quantity: 200, capacity: 200, regenAccum: 0 };
   world.cells.get("0,1").deposit = { resource: "sivet", quantity: 200, capacity: 200, regenAccum: 0 };
   world.cells.get("7,7").deposit = { resource: "orrum", quantity: 2, capacity: 2, regenAccum: 0 };
   const viability = computeViability(world, 200, 5);
   assert.ok(viability.ratio >= 1.0, `sanity: subsistence passes (${viability.ratio.toFixed(2)})`);
-  const slack = computeConstructionSlack(world, 200, 5, typicalStructureCost());
+  const slack = computeConstructionSlack(world, 200, 5, typicalStructureCost(world));
   assert.ok(slack.slack < 1, `slack ${slack.slack.toFixed(3)} below 1 — viable but unable to build`);
   assert.ok(slack.buildSupply < slack.buildDemand, "the material arithmetic is the reason");
 
@@ -260,7 +262,7 @@ test("GATE death instrumentation: starvation with food in inventory flags distin
 // ---------- 8. append-only ----------
 
 test("GATE append-only: an inscribe never alters an existing entry; anyone may append; an oversized append is rejected whole", () => {
-  const world = createWorld({ gridSize: 4, slots: 6, inscriptionMax: 40 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 6, inscriptionMax: 40 });
   const builder = grant(addAgentAt(world, "Builder", "1,1"), { orrum: 1 });
   const stranger = addAgentAt(world, "Stranger", "1,1");
   tick(world, 1, new Map([[builder.id, build("marker", "The Wall")], [stranger.id, wait()]]));
@@ -289,7 +291,7 @@ test("GATE append-only: an inscribe never alters an existing entry; anyone may a
 // ---------- 9. budget is permanent ----------
 
 test("GATE budget is permanent: an exhausted wall accepts nothing, ever, and no path reclaims space", () => {
-  const world = createWorld({ gridSize: 4, slots: 6, inscriptionMax: 10 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 6, inscriptionMax: 10 });
   const a = grant(addAgentAt(world, "Keeper", "1,1"), { orrum: 1 });
   const b = addAgentAt(world, "Later", "1,1");
   tick(world, 1, new Map([[a.id, build("marker", "Small Wall")], [b.id, wait()]]));

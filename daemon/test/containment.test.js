@@ -12,8 +12,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { recipeFor } from "../world/recipes.js";
-import { STRUCTURE_FORMS } from "../world/world.js";
+import { defaultDefinition } from "../world/definition.js";
 import { bootDaemon, register } from "./helpers.js";
 
 const daemonDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,7 +39,13 @@ function importsOf(file) {
   return edges;
 }
 
-test("containment: recipes.js is unreachable from anything under api/", () => {
+// The files api/ must never reach: the recipe machinery, and — v0.9 — the
+// world definition loader that now carries the recipe table (engine spec
+// §2.4). A world file feels like configuration and configuration feels
+// servable; the import graph says otherwise.
+const CONTAINED = ["world/recipes.js", "world/definition.js"];
+
+test("containment: recipes.js and the world definition are unreachable from anything under api/", () => {
   const graph = new Map(sourceFiles().map((f) => [f, importsOf(f)]));
   const apiFiles = [...graph.keys()].filter((f) => f.startsWith("api/"));
   assert.ok(apiFiles.length >= 3, "api/ sources found");
@@ -52,24 +57,32 @@ test("containment: recipes.js is unreachable from anything under api/", () => {
       const file = stack.pop();
       if (seen.has(file)) continue;
       seen.add(file);
-      assert.ok(!file.endsWith("world/recipes.js"), `${start} reaches recipes.js via the import graph`);
+      for (const contained of CONTAINED) {
+        assert.ok(!file.endsWith(contained), `${start} reaches ${contained} via the import graph`);
+      }
       for (const dep of graph.get(file) ?? importsOf(file)) stack.push(dep);
     }
   }
 });
 
-test("containment: engine (the resolver) is the only consumer of recipes.js", () => {
-  const importers = sourceFiles().filter((f) => importsOf(f).some((d) => d.endsWith("world/recipes.js")));
-  for (const f of importers) {
-    assert.ok(!f.startsWith("api/"), `api file ${f} imports recipes.js`);
+test("containment: no api/ source imports recipes.js or the definition, or reads worlds/", () => {
+  for (const f of sourceFiles().filter((f) => f.startsWith("api/"))) {
+    for (const dep of importsOf(f)) {
+      for (const contained of CONTAINED) {
+        assert.ok(!dep.endsWith(contained), `api file ${f} imports ${contained}`);
+      }
+    }
+    const src = readFileSync(join(daemonDir, f), "utf8");
+    assert.ok(!src.includes("worlds/"), `api file ${f} mentions the worlds/ directory`);
   }
 });
 
 // The full cost of every form, as it would appear in leaked JSON or prose.
 function costSignatures() {
+  const defn = defaultDefinition();
   const signatures = [];
-  for (const form of STRUCTURE_FORMS) {
-    const cost = recipeFor(form);
+  for (const form of defn.forms) {
+    const cost = defn.recipes[form];
     assert.ok(cost, `form ${form} has a recipe`);
     signatures.push(JSON.stringify(cost));
     const prose = Object.entries(cost).map(([r, n]) => `${n} ${r}`).join(", ");

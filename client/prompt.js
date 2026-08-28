@@ -53,32 +53,77 @@ const CONSTRAINTS = `How to behave:
 - You take exactly one action per turn. Each action costs the whole turn. Leaving mid-conversation is available and is sometimes the strongest move.
 - "reason" is private and is never seen by anyone else in the world. Be honest in it.`;
 
-// The action contract, built per-scenario: forms and resource names come
-// from /scenario (names only — what a form costs and what a resource does
-// are the world's to withhold; this client ships knowing neither).
+// The action contract, built per-scenario: forms, resource names, and WHICH
+// actions exist all come from /scenario (names only — what a form costs and
+// what a resource does are the world's to withhold; this client ships
+// knowing neither). An action the world does not declare is never rendered
+// (client spec v0.9 §5); a daemon that predates the actions field gets the
+// v0.8 set.
+const V08_ACTIONS = ["say", "move", "gather", "drop", "give", "consume", "build", "inscribe", "demolish", "raze", "attack", "beget", "foster", "wait"];
+
+const ACTION_SENTENCES = {
+  move: "move: one step to an exit coordinate.",
+  gather: "gather: take from the deposit or loose pile here, up to your carry space.",
+  drop: "drop: leave resources here as a loose pile.",
+  give: "give: hand resources to someone here; no consent involved.",
+  consume: "consume: use up one unit of a resource you carry.",
+  build: "build: make a structure here if the ground is empty — each form needs materials, and you find out what by trying.",
+  inscribe: "inscribe: add durable text to the structure here, beneath whatever is already written; existing entries cannot be changed or removed, and the text must fit the space the structure has left.",
+  demolish: "demolish: work at taking apart the structure here; it takes several consecutive turns of doing nothing else, anyone here can see how far along it is, and doing anything else loses the progress.",
+  raze: "raze: bring the structure here down in one turn; it costs you vitality and destroys everything written on it.",
+  attack: "attack: strike someone here.",
+  // One factual line at the attack line's register (client spec v0.9 §5):
+  // what it does, that they and anyone present will see it. Nothing about
+  // when, whether, or why.
+  take: "take: take one unit of one resource from someone here; they and anyone present will see it.",
+  beget: "beget: bring a child into the world, at a cost.",
+  foster: "foster: take over sponsorship of an unsponsored infant here.",
+  wait: "wait: stay as you are and let the turn pass; an ordinary action, available every turn.",
+};
+
 function actionContract(scenario) {
   const forms = scenario?.structureForms?.join('" | "') ?? "tower";
   const resources = scenario?.resourceNames?.join(", ") ?? "";
   const inscriptionMax = scenario?.inscriptionMax ?? 500;
+  const enabled = new Set(scenario?.actions ?? V08_ACTIONS);
+  enabled.add("wait");
+  const has = (a) => enabled.has(a);
+  const enumOrder = ["say", "move", "gather", "drop", "give", "consume", "build", "inscribe", "demolish", "raze", "attack", "take", "beget", "foster", "wait"];
+  const typeEnum = enumOrder.filter(has).map((a) => `"${a}"`).join(" | ");
+  const targeted = ["give", "attack", "take", "foster"].filter(has);
+  const resourceActs = ["consume", "take"].filter(has);
+  const descOrder = ["move", "gather", "drop", "give", "consume", "build", "inscribe", "demolish", "raze", "attack", "take", "beget", "foster", "wait"];
+  const sentences = descOrder.filter(has).map((a) => ACTION_SENTENCES[a]).join(" ");
+
+  const fieldLines = [
+    `  "type": ${typeEnum},`,
+    ...(has("move") ? [`  "coord": "<an exit coordinate like \\"2,0\\", only when type is move, otherwise null>",`] : []),
+    ...(has("say") || has("inscribe")
+      ? [`  "text": "<only for ${[has("say") ? `say (the words you speak, up to 500 chars)` : null, has("inscribe") ? `inscribe (the words to carve, up to ${inscriptionMax} chars)` : null].filter(Boolean).join(" or ")}, otherwise null>",`]
+      : []),
+    ...(has("build") ? [`  "structure": <only for build, otherwise null: {"form": "${forms}", "name": "<1-40 chars>", "description": "<up to 300 chars>"}>,`] : []),
+    ...(targeted.length > 0 ? [`  "target": "<only for ${targeted.join(", ")}: the agentId of someone in this cell, otherwise null>",`] : []),
+    ...(has("give") || has("drop")
+      ? [`  "resources": <only for ${["give", "drop"].filter(has).join(" or ")}, otherwise null: e.g. {"${scenario?.resourceNames?.[0] ?? "sivet"}": 2} — amounts you actually carry>,`]
+      : []),
+    ...(resourceActs.length > 0
+      ? [`  "resource": "<only for ${resourceActs.join(" or ")}: one of ${resources}, something you actually carry, otherwise null>",`]
+      : []),
+    `  "intent": {"summary": "<one short sentence: what you are doing next>", "kind": "travel" | "gather" | "wait" | "demolish" | "other", "target": "<a coordinate like \\"5,2\\" when kind is travel, otherwise null>"},`,
+    `  "reason": "<your honest, private rationale for this action>",`,
+    `  "reflections": null`,
+  ];
+
   return `How to act:
 
 Respond with ONLY a JSON object — no markdown fences, no commentary before or after it:
 
 {
-  "type": "say" | "move" | "gather" | "drop" | "give" | "consume" | "build" | "inscribe" | "demolish" | "raze" | "attack" | "beget" | "foster" | "wait",
-  "coord": "<an exit coordinate like \\"2,0\\", only when type is move, otherwise null>",
-  "text": "<only for say (the words you speak, up to 500 chars) or inscribe (the words to carve, up to ${inscriptionMax} chars), otherwise null>",
-  "structure": <only for build, otherwise null: {"form": "${forms}", "name": "<1-40 chars>", "description": "<up to 300 chars>"}>,
-  "target": "<only for give, attack, foster: the agentId of someone in this cell, otherwise null>",
-  "resources": <only for give or drop, otherwise null: e.g. {"${scenario?.resourceNames?.[0] ?? "sivet"}": 2} — amounts you actually carry>,
-  "resource": "<only for consume: one of ${resources}, something you actually carry, otherwise null>",
-  "intent": {"summary": "<one short sentence: what you are doing next>", "kind": "travel" | "gather" | "wait" | "demolish" | "other", "target": "<a coordinate like \\"5,2\\" when kind is travel, otherwise null>"},
-  "reason": "<your honest, private rationale for this action>",
-  "reflections": null
+${fieldLines.join("\n")}
 }
 
 What the actions do:
-- move: one step to an exit coordinate. gather: take from the deposit or loose pile here, up to your carry space. drop: leave resources here as a loose pile. give: hand resources to someone here; no consent involved. consume: use up one unit of a resource you carry. build: make a structure here if the ground is empty — each form needs materials, and you find out what by trying. inscribe: add durable text to the structure here, beneath whatever is already written; existing entries cannot be changed or removed, and the text must fit the space the structure has left. demolish: work at taking apart the structure here; it takes several consecutive turns of doing nothing else, anyone here can see how far along it is, and doing anything else loses the progress. raze: bring the structure here down in one turn; it costs you vitality and destroys everything written on it. attack: strike someone here. beget: bring a child into the world, at a cost. foster: take over sponsorship of an unsponsored infant here. wait: stay as you are and let the turn pass; an ordinary action, available every turn.
+- ${sentences}
 - Each action costs the whole turn, and only the listed fields for its type may be non-null.
 
 The intent object: "summary" is your stated intent, carried in the world. "kind" and "target" are a note to yourself about whether next ticks are mechanical — use kind "travel" with a target coordinate when you are just walking somewhere, "gather" when you are gathering here until full or empty, "wait" when you are deliberately staying put, "demolish" when you are taking the structure here apart and mean to keep at it, and "other" for anything that needs your attention each turn.

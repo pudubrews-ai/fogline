@@ -123,7 +123,13 @@ export function createCrosscheckSupervisor({ config, archive, baseDir = process.
       [
         ...cc.args,
         "--file", extractPath,
-        "--context", "a scoped extract of one simulated-world run: world events (reflections excluded), client-log windows around notable ticks, and a death summary",
+        // The context names the sections ACTUALLY present (v0.9 fix 6.2):
+        // run 13 advertised client-log windows over an empty section, and
+        // all three vendors named the missing axis as their top concern.
+        "--context",
+        extract.sections?.clientLog
+          ? "a scoped extract of one simulated-world run: world events (reflections excluded), client-log windows around notable ticks, and a death summary"
+          : "a scoped extract of one simulated-world run: world events (reflections excluded) and a death summary; no client logs were configured, so no client-vs-world cross-check is possible",
         "--question", question,
         // The per-vendor timeout sits well inside the supervision ceiling:
         // a vendor that runs to its limit must still leave room for the

@@ -2,6 +2,7 @@
 // frees the slot but the world remembers — structures, history entries, and
 // speech in others' streams all survive. And unmanned never becomes stalled.
 
+import { defaultDefinition } from "../world/definition.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createWorld, createAgent, snapshotCurrentCell } from "../world/world.js";
@@ -27,7 +28,7 @@ function makeEngine(configOverrides = {}, defs = []) {
   const barrier = [];
   const config = { ...baseConfig, ...configOverrides };
   const engine = new TickEngine({
-    worldFactory: () => createWorld({ gridSize: config.gridSize, slots: config.slots }),
+    worldFactory: () => createWorld({ defaults: defaultDefinition(),  gridSize: config.gridSize, slots: config.slots }),
     config,
     barrierLog: (line) => barrier.push(line),
   });

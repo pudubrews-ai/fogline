@@ -31,6 +31,9 @@ const ADAPTERS = {
   "kimi-cli": () => import("./adapters/kimi-cli.js"),
   "glm-cli": () => import("./adapters/glm-cli.js"),
   scripted: () => import("./adapters/scripted.js"),
+  // Stub mode (client spec v0.9 §4) is the scripted adapter by another
+  // name: zero model calls, full client path, correct envelope shape.
+  stub: () => import("./adapters/scripted.js"),
 };
 
 // Model tiering (client spec §3.4): situation-based, not agent-based. Alone
@@ -56,8 +59,32 @@ function pickModel(observation, scenario, config) {
 // intent from the last parsed action, the previous tick's self bands, and
 // the call counters the log reports every tick.
 export function makeDecide({ complete, config, scenario = null, logRaw = () => {}, logPrompt = () => {}, onCounters = () => {} }) {
-  const state = { intent: null, prevBands: null, prevPresent: null, demolishSeen: 0 };
+  const state = { intent: null, prevBands: null, prevPresent: null, demolishSeen: 0, faultEpisode: null };
   const counters = { ticks: 0, inference: 0, cheap: 0 };
+
+  // Fault-episode logging (client spec v0.9 §3): run 8 logged the same
+  // banner line 53 consecutive ticks while an agent starved, and the volume
+  // is what buried it. One FULL entry per episode; repeats accumulate a
+  // count that is written when the episode ends (a different fault, or a
+  // successful call). The consecutive-fault alarm stays loud either way.
+  const closeFaultEpisode = (tick) => {
+    const ep = state.faultEpisode;
+    if (ep && ep.count > 1) {
+      logRaw(tick, `[model error] previous fault repeated ${ep.count} ticks (${ep.firstTick}–${ep.lastTick})`);
+    }
+    state.faultEpisode = null;
+  };
+  const logFault = (tick, message) => {
+    const ep = state.faultEpisode;
+    if (ep && ep.message === message) {
+      ep.count += 1;
+      ep.lastTick = tick;
+      return;
+    }
+    closeFaultEpisode(tick);
+    state.faultEpisode = { message, count: 1, firstTick: tick, lastTick: tick };
+    logRaw(tick, `[model error] ${message}`);
+  };
 
   const decide = async function decide(observation) {
     counters.ticks += 1;
@@ -149,7 +176,7 @@ export function makeDecide({ complete, config, scenario = null, logRaw = () => {
         complete({ system, user, maxTokens: config.maxTokens, signal, ...(model ? { model } : {}) })
       );
     } catch (err) {
-      logRaw(observation.tick, `[model error] ${err.message}`);
+      logFault(observation.tick, err.message);
       // Fault classification (client spec §3.3): an adapter fault — bad
       // exit, auth text on stderr, silence without a timeout — is flagged in
       // the wait's reason so the roster can show adapter_fault instead of a
@@ -159,6 +186,7 @@ export function makeDecide({ complete, config, scenario = null, logRaw = () => {
       }
       return finish(waitWith(`model call failed: ${err.message}`, "adapter_fault"));
     }
+    closeFaultEpisode(observation.tick);
     if (outcome.timedOut) return finish(waitWith("model call exceeded budget", "slow"));
 
     logRaw(observation.tick, outcome.result);
@@ -336,6 +364,7 @@ async function main() {
       server: { type: "string" },
       adapter: { type: "string" },
       heir: { type: "boolean" }, // claim a matured body instead of registering
+      stub: { type: "boolean" }, // stub mode (client spec v0.9 §4): zero model calls, full client path
       release: { type: "boolean" }, // attach, then release the agent and exit
       pollIntervalMs: { type: "string" }, // per-instance poll base (ms); wins over config.pollIntervalMs
     },
@@ -363,7 +392,12 @@ async function main() {
     config.pollIntervalMs = ms;
   }
   const server = (args.server ?? config.server).replace(/\/$/, "");
-  const adapterName = args.adapter ?? config.adapter;
+  // Stub mode (client spec v0.9 §4): no model call anywhere — the stub
+  // adapter produces random-but-legal actions and canned speech through the
+  // FULL client path (session, tick barrier, validation, submission), so a
+  // fresh clone can produce a complete, Scry-renderable run with no
+  // credentials and no subscription.
+  const adapterName = args.stub ? "stub" : (args.adapter ?? config.adapter);
   const loadAdapter = ADAPTERS[adapterName];
   if (!loadAdapter) {
     console.error(`unknown adapter "${adapterName}" (have: ${Object.keys(ADAPTERS).join(", ")})`);

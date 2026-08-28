@@ -9,7 +9,10 @@ export const DESTRUCTION_DEFAULTS = {
   razeCost: 12,
   rubbleYieldDemolish: 6,
   rubbleYieldRaze: 2,
-  rubbleRatio: 3, // 3 rubble substitute for 1 orrum (recipes.buildPlan)
+  // The substitution ratio itself lives on the world's BYPRODUCT declaration
+  // (engine spec v0.9 §2.2); this legacy key still maps onto it at
+  // world-creation time for v0.8-shaped configs.
+  rubbleRatio: 3,
 };
 
 export const destructionConfig = (config) => ({
@@ -43,7 +46,9 @@ export function applyDemolishTick(world, cell, agentId, tick) {
     inscription: entries.length > 0 ? entries.map((e) => ({ ...e })) : null,
   };
   structure.history.push({ agentId, tick, action: "demolish" });
-  addLoose(cell, { rubble: dc.rubbleYieldDemolish });
+  // The yield is the world's byproduct, if it declares one — a byproduct is
+  // never seeded and exists only as the product of a mechanic like this.
+  if (world.byproduct) addLoose(cell, { [world.byproduct.name]: dc.rubbleYieldDemolish }, world.resourceTypes);
   if (removed.inscription !== null) {
     cell.fragment = { entries: removed.inscription };
   }
@@ -64,7 +69,7 @@ export function applyRaze(world, cell, agentId, tick) {
     inscriptionDestroyed: (structure.inscription?.entries.length ?? 0) > 0,
   };
   structure.history.push({ agentId, tick, action: "raze" });
-  addLoose(cell, { rubble: dc.rubbleYieldRaze });
+  if (world.byproduct) addLoose(cell, { [world.byproduct.name]: dc.rubbleYieldRaze }, world.resourceTypes);
   cell.structure = null;
   return removed;
 }

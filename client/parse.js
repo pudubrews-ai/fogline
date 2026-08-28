@@ -9,7 +9,7 @@
 // as `intentState` and drive cheap.js.
 
 const TYPES = new Set([
-  "move", "say", "gather", "drop", "give", "consume",
+  "move", "say", "gather", "drop", "give", "consume", "take",
   "build", "inscribe", "demolish", "raze", "attack", "beget", "foster", "wait",
 ]);
 // Reserved by the protocol: never emitted, even if the model asks.
@@ -196,6 +196,17 @@ export function parseAction(rawText, observation, context = {}) {
     if (typeof target !== "string" || !present.some((p) => p.agentId === target)) {
       return { ok: false, error: `attack target not present: ${JSON.stringify(target)}` };
     }
+  } else if (type === "take") {
+    // take (client spec v0.9 §5): a co-located target and one resource
+    // name. One unit, always — validated locally like attack + consume.
+    const only = nullUnless(fields, ["target", "resource"]);
+    if (only) return { ok: false, error: only };
+    if (typeof target !== "string" || !present.some((p) => p.agentId === target)) {
+      return { ok: false, error: `take target not present: ${JSON.stringify(target)}` };
+    }
+    if (typeof resource !== "string" || resource.length === 0) {
+      return { ok: false, error: "take without a resource name" };
+    }
   } else if (type === "demolish" || type === "raze") {
     // Destruction targets the structure here; validate locally that one
     // exists so a wasted round trip becomes an immediate escalation instead.
@@ -227,9 +238,9 @@ export function parseAction(rawText, observation, context = {}) {
       coord: type === "move" ? coord : null,
       text: type === "say" || type === "inscribe" ? text : null,
       structure: type === "build" ? { form: structure.form, name: structure.name, description: structure.description } : null,
-      target: type === "give" || type === "attack" || type === "foster" ? target : null,
+      target: type === "give" || type === "attack" || type === "take" || type === "foster" ? target : null,
       resources: type === "give" || type === "drop" ? { ...resources } : null,
-      resource: type === "consume" ? resource : null,
+      resource: type === "consume" || type === "take" ? resource : null,
       intent: intentState?.summary ?? null,
       reason,
       reflections,

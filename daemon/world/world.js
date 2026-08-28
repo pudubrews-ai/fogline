@@ -150,11 +150,14 @@ export function parseCoord(coord) {
 }
 
 // Adjacency is computed, never configured: in-bounds orthogonal neighbours.
-// 0,0 is the northwest corner, so north is y-1.
+// 0,0 is the northwest corner, so north is y-1. Width and height are
+// independent (engine spec v0.9 §2.3): a 4×16 canyon is a different world
+// from an 8×8 field, and adjacency stays 4-way and engine-owned.
 export function exitsFor(world, coord) {
   const p = parseCoord(coord);
   if (!p) return [];
-  const n = world.gridSize;
+  const w = world.width ?? world.gridSize;
+  const h = world.height ?? world.gridSize;
   const candidates = [
     { direction: "north", x: p.x, y: p.y - 1 },
     { direction: "east", x: p.x + 1, y: p.y },
@@ -162,16 +165,31 @@ export function exitsFor(world, coord) {
     { direction: "west", x: p.x - 1, y: p.y },
   ];
   return candidates
-    .filter((c) => c.x >= 0 && c.x < n && c.y >= 0 && c.y < n)
+    .filter((c) => c.x >= 0 && c.x < w && c.y >= 0 && c.y < h)
     .map((c) => ({ direction: c.direction, coord: coordKey(c.x, c.y) }));
 }
 
-// The closed enumeration of buildable forms (protocol §8.1). Public at
-// /scenario; what each form COSTS is private world knowledge and lives in
-// recipes.js, which this module deliberately does not import.
-export const STRUCTURE_FORMS = ["tower", "hut", "wall", "platform", "pit", "marker"];
+function deepFreezeRecipes(recipes) {
+  const frozen = {};
+  for (const [form, cost] of Object.entries(recipes)) frozen[form] = Object.freeze({ ...cost });
+  return Object.freeze(frozen);
+}
 
 export function createWorld({
+  // v0.9: a normalized world definition (definition.js) supplies grid,
+  // resources and roles, deposits, recipes, forms, vitals, premise, and
+  // enabled actions. Absent a definition, the legacy v0.8 call shape is
+  // honored exactly: the DEFAULT definition supplies roles, recipes, and
+  // forms (the values that used to be constants here), while grid, deposit
+  // config, and vitals come from the legacy arguments with v0.8 defaults.
+  definition = null,
+  // Legacy (v0.8-shaped) construction: the caller supplies the normalized
+  // definition whose roles, recipes, forms, and actions stand in for the
+  // constants that used to live here. world.js deliberately does NOT import
+  // definition.js — api/ reaches this module, and the loader (with the
+  // recipe table it reads) must stay unreachable from api/ (engine spec
+  // v0.9 §2.4). Operator-side callers (server.js, tests) load and inject it.
+  defaults = null,
   gridSize,
   slots,
   resources = null,
@@ -188,10 +206,44 @@ export function createWorld({
   seeding = null,
   rng = Math.random,
 }) {
-  // gridSize < 2 is rejected at boot with a clear error, not a hang
-  // (protocol §1 amendment 9, daemon spec §2.6).
-  if (!Number.isInteger(gridSize) || gridSize < 2) {
-    throw new Error(`World config error: gridSize must be an integer >= 2, got ${gridSize}`);
+  const base = definition ?? defaults;
+  if (!base) {
+    throw new Error("World config error: createWorld requires a definition (or legacy defaults)");
+  }
+  let width;
+  let height;
+  let depositCfg;
+  let effVitals;
+  const consumable = { ...base.consumable };
+  let byproduct = base.byproduct ? { ...base.byproduct } : null;
+  let shouldSeed;
+  if (definition) {
+    width = definition.width;
+    height = definition.height;
+    depositCfg = resourcesConfig({ resources: definition.deposits });
+    effVitals = vitalsConfig({ vitals: definition.vitals });
+    shouldSeed = true;
+  } else {
+    // gridSize < 2 is rejected at boot with a clear error, not a hang
+    // (protocol §1 amendment 9, daemon spec §2.6).
+    if (!Number.isInteger(gridSize) || gridSize < 2) {
+      throw new Error(`World config error: gridSize must be an integer >= 2, got ${gridSize}`);
+    }
+    width = gridSize;
+    height = gridSize;
+    depositCfg = resourcesConfig({ resources: resources ?? {} });
+    const legacyVitals = { ...(vitals ?? {}) };
+    // Legacy spelling of the consumable's restore amount (v0.8 vitals key).
+    if (legacyVitals.sivetRestores != null && consumable.name === "sivet") {
+      consumable.restores = legacyVitals.sivetRestores;
+      delete legacyVitals.sivetRestores;
+    }
+    effVitals = vitalsConfig({ vitals: legacyVitals });
+    // Legacy spelling of the byproduct's substitution ratio.
+    if (byproduct && destruction?.rubbleRatio != null) {
+      byproduct = { ...byproduct, ratio: destruction.rubbleRatio };
+    }
+    shouldSeed = resources !== null;
   }
   if (!Number.isInteger(slots) || slots < 1) {
     throw new Error(`World config error: slots must be a positive integer, got ${slots}`);
@@ -199,8 +251,8 @@ export function createWorld({
   // Every cell exists at boot with structure null. Never lazily created:
   // the map is the world and a missing cell is a bug surface (spec §2.1).
   const cells = new Map();
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
       cells.set(coordKey(x, y), {
         coord: coordKey(x, y),
         structure: null,
@@ -208,22 +260,38 @@ export function createWorld({
         loose: null, // resource map dropped by death, drop, or destruction
         corpses: [], // permanent; perceivable only from within the cell
         // Inscription fragment left by demolition (protocol §9.1) — attached
-        // to the rubble pile; gone when the cell's rubble is carried off.
+        // to the byproduct pile; gone when the pile is carried off.
         fragment: null, // { text } | null
       });
     }
   }
   const world = {
-    gridSize,
+    // Legacy (v0.8-shaped) construction takes name and premise from config,
+    // not from the default definition that supplies roles and recipes.
+    name: definition ? base.name : null,
+    width,
+    height,
+    // Kept for operator records and legacy readers; null when non-square.
+    gridSize: width === height ? width : null,
+    premise: definition ? base.premise : null,
     cells,
     slots: { total: slots, used: 0 },
     agents: new Map(),
     reclaimedIds: new Set(), // released or reaped — attach answers SLOT_RECLAIMED
     nextMemoryId: 1,
+    // ---- definition-owned world knowledge (engine spec v0.9 §2) ----
+    resourceTypes: [...base.resourceTypes],
+    seedableTypes: [...base.seedableTypes],
+    consumable,
+    byproduct,
+    recipes: deepFreezeRecipes(base.recipes),
+    forms: [...base.forms],
+    enabledActions: new Set(base.actions),
+    knowledgeInheritance: base.knowledgeInheritance === true,
     // Merged vitals constants ride on the world so body creation, upkeep,
     // and band derivation all read one source of truth.
-    vitals: vitalsConfig({ vitals: vitals ?? {} }),
-    resources: resourcesConfig({ resources: resources ?? {} }),
+    vitals: effVitals,
+    resources: depositCfg,
     genotype: genotypeConfig({ genotype: genotype ?? {} }),
     lineage: { ...LINEAGE_DEFAULTS, ...(lineage ?? {}) },
     destruction: destructionConfig({ destruction: destruction ?? {} }),
@@ -234,7 +302,7 @@ export function createWorld({
     // record so replay reconstructs streams exactly (operator-side only).
     memoryLog: [],
   };
-  if (resources) seedDeposits(world, world.resources, rng, seeding);
+  if (shouldSeed) seedDeposits(world, world.resources, rng, seeding);
   return world;
 }
 
@@ -280,7 +348,7 @@ export function createAgent(world, persona, tick, { clientName = null, modelHint
     currentIntent: null,
     lastActionOutcome: null,
     lastUpkeepVitalityDelta: 0, // raw upkeep delta; vitalityTrend derives from its sign (v0.7 A2)
-    inventory: emptyInventory(),
+    inventory: emptyInventory(world.resourceTypes),
     sustenance: world.vitals.sustenanceMax,
     vitality: world.vitals.vitalityMax,
     lifeStage: "adult", // registered bodies are adults; infants come by beget
@@ -353,7 +421,7 @@ export function createInfant(world, { appearance, heritage, sponsorId, coord }, 
     currentIntent: null,
     lastActionOutcome: null,
     lastUpkeepVitalityDelta: 0, // raw upkeep delta; vitalityTrend derives from its sign (v0.7 A2)
-    inventory: emptyInventory(),
+    inventory: emptyInventory(world.resourceTypes),
     sustenance: world.vitals.sustenanceMax,
     vitality: world.vitals.vitalityMax,
     lifeStage: "infant",

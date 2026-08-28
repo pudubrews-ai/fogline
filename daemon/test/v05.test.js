@@ -2,6 +2,7 @@
 // fragment read semantics, the raze gate, surface containment, operator
 // record containment, and the re-derived lean preset.
 
+import { defaultDefinition } from "../world/definition.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -9,7 +10,7 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDaemon } from "../server.js";
 import { createWorld, parseCoord } from "../world/world.js";
-import { SEEDABLE_TYPES, resourcesConfig } from "../world/resources.js";
+import { resourcesConfig } from "../world/resources.js";
 import { computeViability } from "../world/viability.js";
 import { writePerceptions } from "../world/memory.js";
 import { buildObservation } from "../world/observe.js";
@@ -38,7 +39,7 @@ test("GATE viability arithmetic: the v0.4 extinction config computes to ~0.70 ra
   // the protocol formula (§6.2) computes demand over SLOTS; the extinction
   // analysis measured demand for its 5 live agents, so this fixture uses
   // slots = 5 to reproduce the published numbers.
-  const world = createWorld({
+  const world = createWorld({ defaults: defaultDefinition(), 
     gridSize: 8,
     slots: 5,
     resources: { seedDensity: 0.12, quantityRange: [10, 20], regenPerTick: 0.05, distribution: "clustered" },
@@ -97,7 +98,7 @@ test("GATE viability floor: a config below viabilityFloor refuses to boot with t
 test("GATE seed by ratio: targetRatio 1.35 lands within tolerance across ten seeds and three grid sizes", () => {
   for (const gridSize of [6, 8, 10]) {
     for (let seed = 1; seed <= 10; seed++) {
-      const world = createWorld({
+      const world = createWorld({ defaults: defaultDefinition(), 
         gridSize,
         slots: 12,
         resources: { seedDensity: 0.12, quantityRange: [10, 20], regenPerTick: 0.15, distribution: "clustered" },
@@ -116,8 +117,10 @@ test("GATE seed by ratio: targetRatio 1.35 lands within tolerance across ten see
 // ---------- 4. allocation fairness ----------
 
 test("GATE allocation fairness: minSpringsPerResource on a 25-cell grid, order-independent", () => {
-  const layoutFor = () => {
+  const layoutFor = (order = null) => {
+    const base = defaultDefinition();
     const world = createWorld({
+      defaults: order ? { ...base, seedableTypes: order } : base,
       gridSize: 5,
       slots: 5,
       resources: { seedDensity: 0.08, quantityRange: [10, 20], regenPerTick: 0.35, distribution: "clustered" },
@@ -135,7 +138,8 @@ test("GATE allocation fairness: minSpringsPerResource on a 25-cell grid, order-i
     return { counts, layout: layout.sort().join("|") };
   };
 
-  const original = [...SEEDABLE_TYPES];
+  // v0.9: seedable order comes from the world definition; permuting the
+  // declaration order must not change the map (the plan is name-sorted).
   const permutations = [
     ["sivet", "orrum", "khal"],
     ["khal", "orrum", "sivet"],
@@ -143,15 +147,8 @@ test("GATE allocation fairness: minSpringsPerResource on a 25-cell grid, order-i
     ["khal", "sivet", "orrum"],
   ];
   const results = [];
-  try {
-    for (const order of permutations) {
-      SEEDABLE_TYPES.length = 0;
-      SEEDABLE_TYPES.push(...order);
-      results.push(layoutFor());
-    }
-  } finally {
-    SEEDABLE_TYPES.length = 0;
-    SEEDABLE_TYPES.push(...original);
+  for (const order of permutations) {
+    results.push(layoutFor(order));
   }
 
   for (const { counts } of results) {
@@ -168,7 +165,7 @@ test("GATE allocation fairness: minSpringsPerResource on a 25-cell grid, order-i
 // ---------- 5. fragment read once per fragment per agent ----------
 
 test("GATE fragment reads once per agent: two readers each read once, a later arrival reads once", () => {
-  const world = createWorld({ gridSize: 4, slots: 6 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 6 });
   const a = addAgentAt(world, "Asha", "1,1");
   const b = addAgentAt(world, "Boro", "1,1");
   const c = addAgentAt(world, "Ciro", "3,3");
@@ -194,7 +191,7 @@ test("GATE fragment reads once per agent: two readers each read once, a later ar
 // ---------- 6. fragment destroyed with the rubble ----------
 
 test("GATE fragment dies with the pile: gathering rubble to zero removes it from observations", () => {
-  const world = createWorld({ gridSize: 4, slots: 6 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 6 });
   const a = addAgentAt(world, "Asha", "1,1");
   const cell = world.cells.get("1,1");
   cell.loose = { sivet: 0, orrum: 0, khal: 0, rubble: 4 };
@@ -216,7 +213,7 @@ test("GATE fragment dies with the pile: gathering rubble to zero removes it from
 // ---------- 7. raze vitality gate ----------
 
 test("GATE raze gate: an actor at vitality <= razeCost fails, structure stands, no vitality is lost", () => {
-  const world = createWorld({ gridSize: 4, slots: 6 });
+  const world = createWorld({ defaults: defaultDefinition(),  gridSize: 4, slots: 6 });
   const a = addAgentAt(world, "Asha", "1,1");
   const cell = world.cells.get("1,1");
   cell.structure = {
@@ -336,7 +333,7 @@ test("GATE lean preset: survivor counts vary across ten probe seeds — not a co
 
   for (let seed = 1; seed <= 10; seed++) {
     const r = rng(seed * 7919);
-    const world = createWorld({
+    const world = createWorld({ defaults: defaultDefinition(), 
       gridSize: lean.gridSize,
       slots: lean.slots,
       resources: resourcesConfig(lean),

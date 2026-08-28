@@ -202,13 +202,13 @@ test("GATE tripDistance: orrum in a far corner with khal adjacent to food produc
   place("0,1", "khal"); // distance 1 — the material the builder needs least is close
   place("3,3", "orrum"); // distance 6 — the binding material is the far corner
 
-  const slack = computeConstructionSlack(world, 100, 2, typicalStructureCost());
+  const slack = computeConstructionSlack(world, 100, 2, typicalStructureCost(world));
   assert.equal(slack.tripDistance, 6, "the furthest required material decides the trip");
 
   // A world missing one required material entirely cannot complete any
   // two-material recipe: the trip is unbounded and the factor collapses.
   world.cells.get("3,3").deposit = null;
-  const noOrrum = computeConstructionSlack(world, 100, 2, typicalStructureCost());
+  const noOrrum = computeConstructionSlack(world, 100, 2, typicalStructureCost(world));
   assert.equal(noOrrum.tripDistance, null);
   assert.equal(noOrrum.travelFactor, 0);
 });
@@ -235,7 +235,7 @@ test("GATE corpse gather: a corpse holding nothing is distinguished from an empt
 
   // A loose pile in the corpse's cell — the dead agent's dropped inventory —
   // is gatherable exactly as before.
-  addLoose(cell, { sivet: 2 });
+  addLoose(cell, { sivet: 2 }, world.resourceTypes);
   tick(world, 3, new Map([[a.id, mk("gather")], [b.id, wait()]]));
   assert.equal(a.lastActionOutcome.result, "ok");
   assert.match(a.lastActionOutcome.why, /took .*2 sivet/);

@@ -4,6 +4,7 @@
 // reasoning.
 
 import { createDaemon } from "../server.js";
+import { defaultDefinition } from "../world/definition.js";
 import { createAgent, createWorld, snapshotCurrentCell } from "../world/world.js";
 
 // ---------- personas ----------
@@ -38,7 +39,7 @@ export function persona(name, overrides = {}) {
 // ---------- direct world construction (unit tests) ----------
 
 export function makeWorld({ gridSize = 4, slots = 6 } = {}) {
-  return createWorld({ gridSize, slots });
+  return createWorld({ defaults: defaultDefinition(), gridSize, slots });
 }
 
 // Registers an agent and then pins it to a known cell — spawn is random by
@@ -62,7 +63,7 @@ export function grant(body, resources) {
 
 export async function bootDaemon(configOverrides = {}) {
   const daemon = createDaemon(
-    { gridSize: 4, slots: 5, minAgents: 2, reapAfterTicks: 100, ...configOverrides },
+    { gridSize: 4, slots: 5, minAgents: 2, reapAfterTicks: 100, premise: "A test plot of empty ground.", ...configOverrides },
     { logs: false }
   );
   const server = daemon.listen(0);

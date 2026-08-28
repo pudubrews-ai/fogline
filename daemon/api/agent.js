@@ -4,7 +4,6 @@
 
 import { Router, json } from "express";
 import {
-  STRUCTURE_FORMS,
   claimMaturedBody,
   createAgent,
   nameTaken,
@@ -12,18 +11,28 @@ import {
   releaseAgent,
   validatePersona,
 } from "../world/world.js";
-import { RESOURCE_TYPES } from "../world/resources.js";
 import { attachableBodies } from "../world/lineage.js";
 import { PROTOCOL_VERSION } from "../world/observe.js";
 
-const RULES = [
-  "one action per tick: move, say, gather, drop, give, consume, build, inscribe, attack, beget, foster, or wait",
-  "speech reaches only agents in your cell",
-  "build applies to the cell you stand in, if it is empty; each form has a material cost you learn by attempting it",
-  "what you carry is bounded by the carry limit; what others carry is unknowable except by being told",
-  "you know only cells you have stood in; your map can be stale",
-  "the deadline is absolute; a late action is discarded",
+// Display order for the actions line — the world's ENABLED actions filter it
+// (engine spec v0.9 §3): an action a world does not declare is never
+// advertised, exactly as it is never accepted.
+const ACTION_DISPLAY_ORDER = [
+  "move", "say", "gather", "drop", "give", "consume", "build", "inscribe",
+  "attack", "take", "beget", "foster", "demolish", "raze",
 ];
+
+function rulesFor(world) {
+  const actions = ACTION_DISPLAY_ORDER.filter((a) => world.enabledActions.has(a));
+  return [
+    `one action per tick: ${actions.join(", ")}, or wait`,
+    "speech reaches only agents in your cell",
+    "build applies to the cell you stand in, if it is empty; each form has a material cost you learn by attempting it",
+    "what you carry is bounded by the carry limit; what others carry is unknowable except by being told",
+    "you know only cells you have stood in; your map can be stale",
+    "the deadline is absolute; a late action is discarded",
+  ];
+}
 
 // Accept protocol "0.x" for x >= 2. v0.1 clients are rejected outright:
 // `join` no longer exists and a v0.1 client cannot function (protocol §2).
@@ -65,11 +74,16 @@ export function createAgentRouter({ engine, auth, config }) {
     // sivet does and what a wall costs are the world's to withhold.
     res.json({
       protocol: PROTOCOL_VERSION,
-      premise: config.premise,
+      premise: engine.world.premise ?? config.premise,
       gridSize: engine.world.gridSize,
+      width: engine.world.width,
+      height: engine.world.height,
       slots: { ...engine.world.slots },
-      resourceNames: [...RESOURCE_TYPES],
-      structureForms: [...STRUCTURE_FORMS],
+      resourceNames: [...engine.world.resourceTypes],
+      structureForms: [...engine.world.forms],
+      // Which actions exist here (engine spec v0.9 §3): names only — how
+      // each resolves and what it reveals is the engine's, never stated.
+      actions: [...engine.world.enabledActions],
       carryLimit: engine.world.carryLimit,
       sustenanceMax: engine.world.vitals.sustenanceMax,
       vitalityMax: engine.world.vitals.vitalityMax,
@@ -86,7 +100,7 @@ export function createAgentRouter({ engine, auth, config }) {
       // single number only — the breakdown (which touches the recipe
       // table's aggregate) stays operator-side.
       constructionSlack: engine.constructionSlack?.slack ?? null,
-      rules: RULES,
+      rules: rulesFor(engine.world),
     });
   });
 

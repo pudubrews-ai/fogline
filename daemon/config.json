@@ -1,10 +1,9 @@
 {
+  "world": "./worlds/orrum-5.json",
   "port": 3100,
-  "gridSize": 8,
   "slots": 13,
   "minAgents": 2,
   "expectedAgents": 13,
-  "premise": "A shared plot of empty ground. Nothing is built yet. Whatever gets made here, someone has to make it.",
   "minutesPerTick": 15,
   "actionDeadlineMs": 45000,
   "maxTicks": 250,
@@ -26,7 +25,9 @@
   "attentionBudget": 6,
   "archive": {
     "path": "./archive",
-    "clientLogs": []
+    "clientLogs": [
+      "../client/client-*.log"
+    ]
   },
   "crosscheck": {
     "enabled": true,
@@ -36,39 +37,11 @@
     "maxExtractBytes": 250000,
     "question": null
   },
-  "viability": {
-    "targetRatio": 1.35,
-    "viabilityFloor": 1.0,
-    "minSpringsPerResource": 2
-  },
-  "resources": {
-    "seedDensity": 0.12,
-    "quantityRange": [
-      10,
-      20
-    ],
-    "regenPerTick": 0.15,
-    "distribution": "clustered"
-  },
-  "vitals": {
-    "sustenanceMax": 100,
-    "sustenanceDecayPerTick": 3,
-    "sivetRestores": 25,
-    "vitalityMax": 100,
-    "starvationDamagePerTick": 3,
-    "regenThreshold": 50,
-    "regenPerTick": 1,
-    "attackDamage": 25,
-    "attackCost": 6,
-    "sponsorDrainPerTick": 1,
-    "orphanDamagePerTick": 8
-  },
   "destruction": {
     "demolishTicks": 3,
     "razeCost": 12,
     "rubbleYieldDemolish": 6,
-    "rubbleYieldRaze": 2,
-    "rubbleRatio": 3
+    "rubbleYieldRaze": 2
   },
   "genotype": {
     "mutationRate": 0.2,

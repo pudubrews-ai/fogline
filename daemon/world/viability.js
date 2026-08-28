@@ -5,6 +5,11 @@
 // the outcome was decided at generation, and nothing computed the product
 // of the two knobs that decided it. A world that cannot sustain its
 // population fails at boot, not at tick 180.
+//
+// v0.9: the arithmetic computes from whichever resource carries the
+// CONSUMABLE role (engine spec §2.2), never from a name. The output keys
+// (`seededSivet`, `sivetSprings`) are unchanged: they are the operator
+// record schema twelve runs of archives and Scry's panels already read.
 
 export const VIABILITY_DEFAULTS = {
   targetRatio: 1.35,
@@ -18,9 +23,9 @@ export const viabilityConfig = (config) => ({
 });
 
 // The boot computation (protocol §6.2 as amended by v0.6 A5), from the
-// seeded world and the run parameters. All units are sivet except the two
-// capacities, which are agents. `capacity` is the sharper number: a
-// one-time larder moves the date of extinction, never the outcome.
+// seeded world and the run parameters. All units are the consumable resource
+// except the two capacities, which are agents. `capacity` is the sharper
+// number: a one-time larder moves the date of extinction, never the outcome.
 //
 // Demand computes over `expectedAgents` — the population the operator
 // actually plans to run (config, default minAgents) — not over slots. A
@@ -30,11 +35,12 @@ export function computeViability(world, maxTicks, expectedAgents = world.slots.t
   const v = world.vitals;
   const rc = world.resources;
   const slots = world.slots.total;
+  const consumable = world.consumable;
 
   let seededSivet = 0;
   let sivetSprings = 0;
   for (const cell of world.cells.values()) {
-    if (cell.deposit?.resource === "sivet") {
+    if (cell.deposit?.resource === consumable.name) {
       sivetSprings += 1;
       seededSivet += cell.deposit.capacity;
     }
@@ -42,14 +48,15 @@ export function computeViability(world, maxTicks, expectedAgents = world.slots.t
 
   // Perfect-play subsistence for the expected population over the whole run:
   // each body burns decay×maxTicks sustenance, arrives holding
-  // sustenanceMax, and covers the rest with sivet at sivetRestores apiece.
-  const demand = (expectedAgents * (v.sustenanceDecayPerTick * maxTicks - v.sustenanceMax)) / v.sivetRestores;
+  // sustenanceMax, and covers the rest with the consumable at `restores`
+  // apiece.
+  const demand = (expectedAgents * (v.sustenanceDecayPerTick * maxTicks - v.sustenanceMax)) / consumable.restores;
   const regenSupply = sivetSprings * rc.regenPerTick * maxTicks;
   const supply = seededSivet + regenSupply;
   const ratio = demand > 0 ? supply / demand : Infinity;
 
   // The population the regeneration flow alone sustains indefinitely.
-  const capacity = (sivetSprings * rc.regenPerTick * v.sivetRestores) / v.sustenanceDecayPerTick;
+  const capacity = (sivetSprings * rc.regenPerTick * consumable.restores) / v.sustenanceDecayPerTick;
 
   // The headline (v0.7 A3): capacity − expectedAgents, and in plain terms
   // how many deaths are structurally required. Run 10 booted at ratio 1.349
@@ -63,10 +70,13 @@ export function computeViability(world, maxTicks, expectedAgents = world.slots.t
   // Closed-form optimal-play baseline (daemon spec §2.6): efficient solitary
   // foragers with perfect knowledge. The flow sustains `capacity` agents
   // forever; the seeded larder feeds additional agents for the duration of
-  // this run. An estimate, not a simulation — bounded by the slot count.
+  // this run. An estimate, not a simulation — bounded by `expectedAgents`
+  // (v0.9 fix 6.1: it was bounded by the slot count, so the baseline could
+  // count survivors among agents that were never expected to exist; demand
+  // and the baseline now use the same agent count).
   const optimalSurvivors = Math.min(
-    slots,
-    capacity + (seededSivet * v.sivetRestores) / (v.sustenanceDecayPerTick * maxTicks)
+    expectedAgents,
+    capacity + (seededSivet * consumable.restores) / (v.sustenanceDecayPerTick * maxTicks)
   );
 
   return {
@@ -92,9 +102,9 @@ export function computeViability(world, maxTicks, expectedAgents = world.slots.t
 // number cannot express both, so this is the second one.
 //
 //   buildDemand = expectedAgents × typicalStructureCost
-//   buildSupply = seeded orrum + khal + their regeneration over maxTicks
+//   buildSupply = seeded structural material + its regeneration over maxTicks
 //   travel      = sustenance burned on the round trip from the nearest
-//                 sivet spring to the nearest material deposit, as a
+//                 consumable spring to the nearest material deposit, as a
 //                 fraction of a full belly
 //   slack       = (buildSupply / buildDemand) × (1 − travel)
 //
@@ -102,16 +112,26 @@ export function computeViability(world, maxTicks, expectedAgents = world.slots.t
 export function computeConstructionSlack(world, maxTicks, expectedAgents, typicalStructureCost) {
   const v = world.vitals;
   const rc = world.resources;
+  const consumableName = world.consumable.name;
+
+  // The materials that decide buildability: every STRUCTURAL resource any
+  // recipe requires. Under Orrum-5 this is exactly {orrum, khal}, as before.
+  const requiredMaterials = new Set();
+  for (const cost of Object.values(world.recipes)) {
+    for (const r of Object.keys(cost)) {
+      if (r !== consumableName && world.byproduct?.name !== r) requiredMaterials.add(r);
+    }
+  }
 
   let buildSeeded = 0;
   let materialSprings = 0;
-  const sivetSprings = [];
-  const materialCellsByResource = { orrum: [], khal: [] };
+  const consumableSprings = [];
+  const materialCellsByResource = Object.fromEntries([...requiredMaterials].map((r) => [r, []]));
   for (const cell of world.cells.values()) {
     const dep = cell.deposit;
     if (!dep) continue;
-    if (dep.resource === "sivet") sivetSprings.push(cell.coord);
-    if (dep.resource === "orrum" || dep.resource === "khal") {
+    if (dep.resource === consumableName) consumableSprings.push(cell.coord);
+    if (requiredMaterials.has(dep.resource)) {
       materialSprings += 1;
       buildSeeded += dep.capacity;
       materialCellsByResource[dep.resource].push(cell.coord);
@@ -121,14 +141,14 @@ export function computeConstructionSlack(world, maxTicks, expectedAgents, typica
   const buildSupply = buildSeeded + buildRegen;
   const buildDemand = Math.max(1e-9, expectedAgents * typicalStructureCost);
 
-  // The binding trip (v0.7 A4): every recipe except `marker` needs BOTH
-  // orrum and khal, so the trip that decides buildability is to the
-  // FURTHEST required material — per material, the nearest deposit to any
-  // food spring; across materials, the worst of those. Run 10's minimum
-  // over all pairs resolved to the material the builder needs least and
-  // reported a comfortable number; on a seed with orrum in a far corner it
-  // would pass a genuinely unbuildable world. A missing material type means
-  // no trip can complete: distance is unbounded and the factor collapses.
+  // The binding trip (v0.7 A4): recipes generally need EVERY required
+  // material, so the trip that decides buildability is to the FURTHEST
+  // required material — per material, the nearest deposit to any food
+  // spring; across materials, the worst of those. Run 10's minimum over all
+  // pairs resolved to the material the builder needs least and reported a
+  // comfortable number; on a seed with a material in a far corner it would
+  // pass a genuinely unbuildable world. A missing material type means no
+  // trip can complete: distance is unbounded and the factor collapses.
   const dist = (a, b) => {
     const [ax, ay] = a.split(",").map(Number);
     const [bx, by] = b.split(",").map(Number);
@@ -136,7 +156,7 @@ export function computeConstructionSlack(world, maxTicks, expectedAgents, typica
   };
   const nearestTripTo = (cells) => {
     let best = null;
-    for (const s of sivetSprings) {
+    for (const s of consumableSprings) {
       for (const m of cells) {
         const d = dist(s, m);
         if (best === null || d < best) best = d;
@@ -144,9 +164,16 @@ export function computeConstructionSlack(world, maxTicks, expectedAgents, typica
     }
     return best;
   };
-  const tripOrrum = nearestTripTo(materialCellsByResource.orrum);
-  const tripKhal = nearestTripTo(materialCellsByResource.khal);
-  const trip = tripOrrum === null || tripKhal === null ? null : Math.max(tripOrrum, tripKhal);
+  let trip = null;
+  for (const material of [...requiredMaterials].sort()) {
+    const t = nearestTripTo(materialCellsByResource[material]);
+    if (t === null) {
+      trip = null;
+      break;
+    }
+    trip = trip === null ? t : Math.max(trip, t);
+  }
+  if (requiredMaterials.size === 0) trip = null;
   const travelCost = trip === null ? Infinity : 2 * trip * v.sustenanceDecayPerTick;
   const travelFactor = Number.isFinite(travelCost)
     ? Math.max(0, 1 - travelCost / v.sustenanceMax)
@@ -173,13 +200,14 @@ export function computeConstructionSlack(world, maxTicks, expectedAgents, typica
 export function viabilityFailureMessage(viability, floor, world) {
   const v = world.vitals;
   const rc = world.resources;
+  const consumable = world.consumable;
   return (
     `World not viable: subsistence ratio ${viability.ratio.toFixed(2)} < viabilityFloor ${floor.toFixed(2)}. ` +
-    `supply = ${viability.seededSivet} seeded sivet + ${viability.sivetSprings} springs × ` +
+    `supply = ${viability.seededSivet} seeded ${consumable.name} + ${viability.sivetSprings} springs × ` +
     `${rc.regenPerTick}/tick × ${viability.maxTicks} ticks = ${viability.supply.toFixed(1)}; ` +
     `demand = ${viability.expectedAgents} expected agents (${viability.slots} slots) × ((${v.sustenanceDecayPerTick} decay × ${viability.maxTicks} ticks) − ` +
-    `${v.sustenanceMax} starting sustenance) / ${v.sivetRestores} per sivet = ${viability.demand.toFixed(1)}; ` +
+    `${v.sustenanceMax} starting sustenance) / ${consumable.restores} per ${consumable.name} = ${viability.demand.toFixed(1)}; ` +
     `steady-state carrying capacity = ${viability.capacity.toFixed(2)} agents. ` +
-    `Raise resources.regenPerTick or viability.targetRatio, or lower slots/maxTicks/decay.`
+    `Raise deposits.regenPerTick or viability.targetRatio, or lower slots/maxTicks/decay.`
   );
 }

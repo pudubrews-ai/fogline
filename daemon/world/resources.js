@@ -2,12 +2,11 @@
 // (protocol §5, daemon spec §2). Resource NAMES are public at /scenario;
 // their PROPERTIES are not — nothing in this module describes what a
 // resource does, only where it sits and how much of it there is.
-
-export const RESOURCE_TYPES = ["sivet", "orrum", "khal", "rubble"];
-
-// Rubble is NEVER seeded (protocol §5.2, §9.5): it exists only as a product
-// of destruction. Seeding draws from this list, not RESOURCE_TYPES.
-export const SEEDABLE_TYPES = ["sivet", "orrum", "khal"];
+//
+// v0.9: resource names come from the world definition (engine spec §2.2).
+// The engine holds no resource list of its own — the world carries
+// `resourceTypes`, `seedableTypes`, and the role lookups (`consumable`,
+// `byproduct`), and every function here reads them from the world.
 
 export const RESOURCE_DEFAULTS = {
   seedDensity: 0.35, // fraction of cells carrying a deposit
@@ -18,9 +17,9 @@ export const RESOURCE_DEFAULTS = {
 
 export const resourcesConfig = (config) => ({ ...RESOURCE_DEFAULTS, ...(config.resources ?? {}) });
 
-export const emptyInventory = () => ({ sivet: 0, orrum: 0, khal: 0, rubble: 0 });
+export const emptyInventory = (types) => Object.fromEntries(types.map((r) => [r, 0]));
 
-export const inventoryTotal = (inv) => RESOURCE_TYPES.reduce((sum, r) => sum + (inv[r] ?? 0), 0);
+export const inventoryTotal = (inv) => Object.values(inv).reduce((sum, n) => sum + (n ?? 0), 0);
 
 // Cell deposits: {resource, quantity, capacity, regenAccum}. Capacity is the
 // seeded quantity — a mined-out deposit regenerates back toward it and never
@@ -34,30 +33,31 @@ const randomInt = (rng, lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
 
 // Per-resource spring counts and per-spring quantities (daemon spec §2.4-2.5).
 // Two rules, both normative:
-//   - sivet is governed by targetRatio, not density: the seeder computes the
-//     supply the ratio requires and seeds exactly what regeneration will not
-//     provide. Density's meaning shifts with grid, slots, decay, and run
-//     length; a ratio does not.
+//   - the CONSUMABLE resource is governed by targetRatio, not density: the
+//     seeder computes the supply the ratio requires and seeds exactly what
+//     regeneration will not provide. Density's meaning shifts with grid,
+//     slots, decay, and run length; a ratio does not.
 //   - every resource gets minSpringsPerResource springs BEFORE any surplus is
 //     distributed, and the allocation is order-independent: the plan is
 //     computed over the name-sorted resource list, so no ordering of
-//     SEEDABLE_TYPES (or of anything else) can starve a resource.
-// v0.4's round-robin allocator gave the lean preset exactly one sivet cell,
-// and raising density to fix it would have pushed khal off the map.
+//     seedableTypes (or of anything else) can starve a resource.
+// v0.4's round-robin allocator gave the lean preset exactly one food cell,
+// and raising density to fix it would have pushed a material off the map.
 function seedingPlan(world, rc, seeding, cellCount, rng) {
   const [qLo, qHi] = rc.quantityRange;
   const minSprings = Math.max(1, seeding?.minSpringsPerResource ?? 2);
-  const types = [...SEEDABLE_TYPES].sort();
+  const types = [...world.seedableTypes].sort();
   const densityTarget = Math.max(types.length * minSprings, Math.round(rc.seedDensity * cellCount));
   const plan = new Map(); // resource -> {springs, quantities: number[]}
 
   const byRatio = seeding?.targetRatio != null && seeding?.maxTicks != null;
   if (byRatio) {
     const v = world.vitals;
+    const consumable = world.consumable;
     // Demand over the expected population (v0.6 A5), matching the viability
     // arithmetic, so the boot ratio equals targetRatio by construction.
     const expectedAgents = seeding.expectedAgents ?? world.slots.total;
-    const demand = (expectedAgents * (v.sustenanceDecayPerTick * seeding.maxTicks - v.sustenanceMax)) / v.sivetRestores;
+    const demand = (expectedAgents * (v.sustenanceDecayPerTick * seeding.maxTicks - v.sustenanceMax)) / consumable.restores;
     const required = seeding.targetRatio * demand;
     const regenPerSpring = rc.regenPerTick * seeding.maxTicks;
     const avgQ = (qLo + qHi) / 2;
@@ -71,7 +71,7 @@ function seedingPlan(world, rc, seeding, cellCount, rng) {
     const seedTotal = Math.max(springs, Math.round(required - springs * regenPerSpring));
     const base = Math.floor(seedTotal / springs);
     const quantities = Array.from({ length: springs }, (_, i) => base + (i < seedTotal % springs ? 1 : 0));
-    plan.set("sivet", { springs, quantities });
+    plan.set(consumable.name, { springs, quantities });
   }
 
   // Non-ratio resources fall back to density: the guaranteed minimum first,
@@ -94,7 +94,7 @@ function seedingPlan(world, rc, seeding, cellCount, rng) {
 
 // Uneven distribution is normative (protocol §5.2): clustered deposits create
 // places worth being, which creates places worth contesting. Each cluster
-// carries a single resource; all three types are always represented.
+// carries a single resource; every seedable type is always represented.
 // `seeding` (from viabilityConfig + maxTicks) enables the ratio path; without
 // it the plan falls back to density for everything, minimums still guaranteed.
 export function seedDeposits(world, rc, rng = Math.random, seeding = null) {
@@ -155,12 +155,13 @@ export function regenerateDeposits(world, rc) {
 }
 
 // Loose piles: dropped by death or the drop action; never regenerate.
-export function addLoose(cell, resources) {
-  for (const r of RESOURCE_TYPES) {
-    const n = resources[r] ?? 0;
-    if (n <= 0) continue;
-    if (!cell.loose) cell.loose = emptyInventory();
-    cell.loose[r] += n;
+// `types` is the world's resource list — a fresh pile carries every type at
+// zero, exactly as inventories do, so record shapes stay uniform.
+export function addLoose(cell, resources, types) {
+  for (const [r, n] of Object.entries(resources)) {
+    if (!n || n <= 0) continue;
+    if (!cell.loose) cell.loose = emptyInventory(types);
+    cell.loose[r] = (cell.loose[r] ?? 0) + n;
   }
 }
 
@@ -177,6 +178,6 @@ export function depositView(cell) {
 export function looseView(cell) {
   if (!cell.loose) return null;
   const out = {};
-  for (const r of RESOURCE_TYPES) if (cell.loose[r] > 0) out[r] = cell.loose[r];
+  for (const [r, n] of Object.entries(cell.loose)) if (n > 0) out[r] = n;
   return Object.keys(out).length > 0 ? out : null;
 }

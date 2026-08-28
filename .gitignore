@@ -12,6 +12,7 @@ archive/
 .env
 .env.*
 !.env.example
+.credentials/
 .identity/
 .fishbowl-identity-*.json
 .fogline-identity-*.json

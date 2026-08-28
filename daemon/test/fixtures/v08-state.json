@@ -1,0 +1,550 @@
+{
+  "generatedFrom": "v0.8 daemon at fogline commit 2 (pre-refactor), config.json verbatim",
+  "premise": "A shared plot of empty ground. Nothing is built yet. Whatever gets made here, someone has to make it.",
+  "forms": [
+    "tower",
+    "hut",
+    "wall",
+    "platform",
+    "pit",
+    "marker"
+  ],
+  "recipes": {
+    "tower": {
+      "orrum": 8,
+      "khal": 3
+    },
+    "hut": {
+      "orrum": 5,
+      "khal": 2
+    },
+    "wall": {
+      "orrum": 3,
+      "khal": 1
+    },
+    "platform": {
+      "orrum": 4,
+      "khal": 1
+    },
+    "pit": {
+      "orrum": 1,
+      "khal": 2
+    },
+    "marker": {
+      "orrum": 1
+    }
+  },
+  "typicalStructureCost": 4.5,
+  "boots": [
+    {
+      "seed": 1337,
+      "deposits": [
+        {
+          "coord": "1,4",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,3",
+          "resource": "khal",
+          "quantity": 12,
+          "capacity": 12,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,4",
+          "resource": "sivet",
+          "quantity": 14,
+          "capacity": 14,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,5",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,2",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,3",
+          "resource": "khal",
+          "quantity": 12,
+          "capacity": 12,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,4",
+          "resource": "sivet",
+          "quantity": 14,
+          "capacity": 14,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,5",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,6",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "4,3",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "4,4",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "6,2",
+          "resource": "orrum",
+          "quantity": 17,
+          "capacity": 17,
+          "regenAccum": 0
+        },
+        {
+          "coord": "7,2",
+          "resource": "orrum",
+          "quantity": 18,
+          "capacity": 18,
+          "regenAccum": 0
+        }
+      ],
+      "viability": {
+        "demand": 338,
+        "supply": 456.49999999999994,
+        "seededSivet": 119,
+        "sivetSprings": 9,
+        "regenSupply": 337.49999999999994,
+        "ratio": 1.3505917159763312,
+        "capacity": 11.25,
+        "capacityMargin": -1.75,
+        "deathsRequired": 2,
+        "optimalSurvivors": 13,
+        "slots": 13,
+        "expectedAgents": 13,
+        "maxTicks": 250
+      },
+      "constructionSlack": {
+        "slack": 2.9295726495726497,
+        "buildDemand": 58.5,
+        "buildSupply": 209,
+        "buildSeeded": 59,
+        "buildRegen": 150,
+        "materialSprings": 4,
+        "typicalStructureCost": 4.5,
+        "tripDistance": 3,
+        "travelCost": 18,
+        "travelFactor": 0.8200000000000001,
+        "expectedAgents": 13
+      },
+      "vitals": {
+        "sustenanceMax": 100,
+        "sustenanceDecayPerTick": 3,
+        "sivetRestores": 25,
+        "vitalityMax": 100,
+        "starvationDamagePerTick": 3,
+        "regenThreshold": 50,
+        "regenPerTick": 1,
+        "attackDamage": 25,
+        "attackCost": 6,
+        "sponsorDrainPerTick": 1,
+        "orphanDamagePerTick": 8,
+        "vitalityHaleAbove": 66,
+        "vitalityFailingAtOrBelow": 25,
+        "sustenanceFedAbove": 60,
+        "sustenanceStarvingAtOrBelow": 20
+      },
+      "resources": {
+        "seedDensity": 0.12,
+        "quantityRange": [
+          10,
+          20
+        ],
+        "regenPerTick": 0.15,
+        "distribution": "clustered"
+      },
+      "lineage": {
+        "maturityTicks": 20,
+        "begetVitalityCost": 20,
+        "begetResourceCost": {
+          "sivet": 4
+        }
+      },
+      "destruction": {
+        "demolishTicks": 3,
+        "razeCost": 12,
+        "rubbleYieldDemolish": 6,
+        "rubbleYieldRaze": 2,
+        "rubbleRatio": 3
+      },
+      "carryLimit": 12,
+      "inscriptionMax": 500,
+      "gridSize": 8,
+      "slots": {
+        "total": 13
+      }
+    },
+    {
+      "seed": 42,
+      "deposits": [
+        {
+          "coord": "0,2",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "1,1",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "1,2",
+          "resource": "sivet",
+          "quantity": 14,
+          "capacity": 14,
+          "regenAccum": 0
+        },
+        {
+          "coord": "1,3",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "1,4",
+          "resource": "orrum",
+          "quantity": 17,
+          "capacity": 17,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,0",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,1",
+          "resource": "khal",
+          "quantity": 14,
+          "capacity": 14,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,2",
+          "resource": "sivet",
+          "quantity": 14,
+          "capacity": 14,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,3",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,4",
+          "resource": "orrum",
+          "quantity": 19,
+          "capacity": 19,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,1",
+          "resource": "khal",
+          "quantity": 16,
+          "capacity": 16,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,2",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,3",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        }
+      ],
+      "viability": {
+        "demand": 338,
+        "supply": 456.49999999999994,
+        "seededSivet": 119,
+        "sivetSprings": 9,
+        "regenSupply": 337.49999999999994,
+        "ratio": 1.3505917159763312,
+        "capacity": 11.25,
+        "capacityMargin": -1.75,
+        "deathsRequired": 2,
+        "optimalSurvivors": 13,
+        "slots": 13,
+        "expectedAgents": 13,
+        "maxTicks": 250
+      },
+      "constructionSlack": {
+        "slack": 3.4707692307692306,
+        "buildDemand": 58.5,
+        "buildSupply": 216,
+        "buildSeeded": 66,
+        "buildRegen": 150,
+        "materialSprings": 4,
+        "typicalStructureCost": 4.5,
+        "tripDistance": 1,
+        "travelCost": 6,
+        "travelFactor": 0.94,
+        "expectedAgents": 13
+      },
+      "vitals": {
+        "sustenanceMax": 100,
+        "sustenanceDecayPerTick": 3,
+        "sivetRestores": 25,
+        "vitalityMax": 100,
+        "starvationDamagePerTick": 3,
+        "regenThreshold": 50,
+        "regenPerTick": 1,
+        "attackDamage": 25,
+        "attackCost": 6,
+        "sponsorDrainPerTick": 1,
+        "orphanDamagePerTick": 8,
+        "vitalityHaleAbove": 66,
+        "vitalityFailingAtOrBelow": 25,
+        "sustenanceFedAbove": 60,
+        "sustenanceStarvingAtOrBelow": 20
+      },
+      "resources": {
+        "seedDensity": 0.12,
+        "quantityRange": [
+          10,
+          20
+        ],
+        "regenPerTick": 0.15,
+        "distribution": "clustered"
+      },
+      "lineage": {
+        "maturityTicks": 20,
+        "begetVitalityCost": 20,
+        "begetResourceCost": {
+          "sivet": 4
+        }
+      },
+      "destruction": {
+        "demolishTicks": 3,
+        "razeCost": 12,
+        "rubbleYieldDemolish": 6,
+        "rubbleYieldRaze": 2,
+        "rubbleRatio": 3
+      },
+      "carryLimit": 12,
+      "inscriptionMax": 500,
+      "gridSize": 8,
+      "slots": {
+        "total": 13
+      }
+    },
+    {
+      "seed": 987654321,
+      "deposits": [
+        {
+          "coord": "0,4",
+          "resource": "khal",
+          "quantity": 11,
+          "capacity": 11,
+          "regenAccum": 0
+        },
+        {
+          "coord": "0,5",
+          "resource": "khal",
+          "quantity": 20,
+          "capacity": 20,
+          "regenAccum": 0
+        },
+        {
+          "coord": "2,3",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,2",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,3",
+          "resource": "sivet",
+          "quantity": 14,
+          "capacity": 14,
+          "regenAccum": 0
+        },
+        {
+          "coord": "3,4",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "4,1",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "4,2",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "4,3",
+          "resource": "sivet",
+          "quantity": 14,
+          "capacity": 14,
+          "regenAccum": 0
+        },
+        {
+          "coord": "4,4",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "5,3",
+          "resource": "sivet",
+          "quantity": 13,
+          "capacity": 13,
+          "regenAccum": 0
+        },
+        {
+          "coord": "6,2",
+          "resource": "orrum",
+          "quantity": 20,
+          "capacity": 20,
+          "regenAccum": 0
+        },
+        {
+          "coord": "7,2",
+          "resource": "orrum",
+          "quantity": 10,
+          "capacity": 10,
+          "regenAccum": 0
+        }
+      ],
+      "viability": {
+        "demand": 338,
+        "supply": 456.49999999999994,
+        "seededSivet": 119,
+        "sivetSprings": 9,
+        "regenSupply": 337.49999999999994,
+        "ratio": 1.3505917159763312,
+        "capacity": 11.25,
+        "capacityMargin": -1.75,
+        "deathsRequired": 2,
+        "optimalSurvivors": 13,
+        "slots": 13,
+        "expectedAgents": 13,
+        "maxTicks": 250
+      },
+      "constructionSlack": {
+        "slack": 2.957606837606838,
+        "buildDemand": 58.5,
+        "buildSupply": 211,
+        "buildSeeded": 61,
+        "buildRegen": 150,
+        "materialSprings": 4,
+        "typicalStructureCost": 4.5,
+        "tripDistance": 3,
+        "travelCost": 18,
+        "travelFactor": 0.8200000000000001,
+        "expectedAgents": 13
+      },
+      "vitals": {
+        "sustenanceMax": 100,
+        "sustenanceDecayPerTick": 3,
+        "sivetRestores": 25,
+        "vitalityMax": 100,
+        "starvationDamagePerTick": 3,
+        "regenThreshold": 50,
+        "regenPerTick": 1,
+        "attackDamage": 25,
+        "attackCost": 6,
+        "sponsorDrainPerTick": 1,
+        "orphanDamagePerTick": 8,
+        "vitalityHaleAbove": 66,
+        "vitalityFailingAtOrBelow": 25,
+        "sustenanceFedAbove": 60,
+        "sustenanceStarvingAtOrBelow": 20
+      },
+      "resources": {
+        "seedDensity": 0.12,
+        "quantityRange": [
+          10,
+          20
+        ],
+        "regenPerTick": 0.15,
+        "distribution": "clustered"
+      },
+      "lineage": {
+        "maturityTicks": 20,
+        "begetVitalityCost": 20,
+        "begetResourceCost": {
+          "sivet": 4
+        }
+      },
+      "destruction": {
+        "demolishTicks": 3,
+        "razeCost": 12,
+        "rubbleYieldDemolish": 6,
+        "rubbleYieldRaze": 2,
+        "rubbleRatio": 3
+      },
+      "carryLimit": 12,
+      "inscriptionMax": 500,
+      "gridSize": 8,
+      "slots": {
+        "total": 13
+      }
+    }
+  ]
+}

@@ -5,7 +5,7 @@
 
 import { addMemory, IMPORTANCE } from "../world/memory.js";
 import { exitsFor, releaseAgent, snapshotCurrentCell, parseCoord } from "../world/world.js";
-import { RESOURCE_TYPES, addLoose, emptyInventory, inventoryTotal, regenerateDeposits } from "../world/resources.js";
+import { addLoose, emptyInventory, inventoryTotal, regenerateDeposits } from "../world/resources.js";
 import { buildPlan, consumePlan, formatShortfall } from "../world/recipes.js";
 import { emptyInscription, appendEntry } from "../world/inscription.js";
 import { applyDemolishTick, applyRaze, sweepStalledDemolitions } from "../world/destruction.js";
@@ -25,13 +25,14 @@ const nameOf = (body) => body?.persona?.name ?? "an unnamed infant";
 const FOOD_REACH_RADIUS = 2; // Manhattan cells — "reachable", not "the map"
 
 function foodAtDeath(world, body) {
-  if (body.inventory.sivet > 0) return "inventory";
+  const food = world.consumable.name;
+  if (body.inventory[food] > 0) return "inventory";
   const p = parseCoord(body.coord);
   for (const cell of world.cells.values()) {
     const q = parseCoord(cell.coord);
     if (Math.abs(p.x - q.x) + Math.abs(p.y - q.y) > FOOD_REACH_RADIUS) continue;
-    if (cell.deposit?.resource === "sivet" && cell.deposit.quantity >= 1) return "nearby";
-    if ((cell.loose?.sivet ?? 0) > 0) return "nearby";
+    if (cell.deposit?.resource === food && cell.deposit.quantity >= 1) return "nearby";
+    if ((cell.loose?.[food] ?? 0) > 0) return "nearby";
   }
   return "none";
 }
@@ -54,7 +55,7 @@ function applyDeaths(world, tick, simTime, hooks) {
     const food = foodAtDeath(world, body);
 
     // 1. Inventory drops as a loose pile, merged with anything already there.
-    addLoose(cell, body.inventory);
+    addLoose(cell, body.inventory, world.resourceTypes);
 
     // 2. A permanent corpse. Not a resource, never gatherable.
     cell.corpses.push({
@@ -201,8 +202,62 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
     [...actions].filter(([, rec]) => !rec.assigned && !rec.coercedWait && rec.action.type === type)
       .sort(([a], [b]) => (a < b ? -1 : 1));
 
+  // 2b. Take (engine spec v0.9 §4) — immediately after attack, before raze:
+  //     an agent cannot take and flee in one tick. Unilateral and
+  //     unresistable, symmetric with give; co-located target; ONE unit.
+  //     The victim knows, co-located witnesses know, nobody outside the
+  //     cell knows — exactly the attack model: an ordinary memory that
+  //     propagates by speech, decays by retrieval, and dies with the
+  //     witness. No score of any kind tallies the deed. Failures are
+  //     coerced to wait and reported flatly, same discipline as build
+  //     shortfalls.
+  for (const [agentId, rec] of actionsSorted("take")) {
+    const actor = world.agents.get(agentId);
+    if (!actor) continue;
+    const target = world.agents.get(rec.action.target);
+    const fail = (why) => {
+      rec.coercedWait = true;
+      rec.coerceReason = "invalid_take";
+      outcomes.set(agentId, { type: "take", result: "failed", why });
+      hooks.invalidTake?.({ tick, agentId, target: rec.action.target, coord: actor.coord });
+    };
+    if (!target || target.id === actor.id || target.coord !== actor.coord) {
+      fail("no such agent here");
+      continue;
+    }
+    const r = rec.action.resource;
+    if ((target.inventory[r] ?? 0) < 1) {
+      fail(`they hold no ${r}`);
+      continue;
+    }
+    if (inventoryTotal(actor.inventory) >= world.carryLimit) {
+      fail("you cannot carry more");
+      continue;
+    }
+    target.inventory[r] -= 1;
+    actor.inventory[r] = (actor.inventory[r] ?? 0) + 1;
+
+    // Witness memory to every agent in the cell, target and actor included —
+    // attribution here is ordinary perception: the victim is right here
+    // and the thing left their hands.
+    const text = `${nameOf(actor)} took 1 ${r} from ${nameOf(target)}.`;
+    const present = [];
+    for (const witness of world.agents.values()) {
+      if (witness.coord !== actor.coord) continue;
+      addMemory(world, witness, { tick, simTime, type: "observation", text, importance: IMPORTANCE.ATTACK_WITNESS });
+      witness.eventTick = tick;
+      if (witness.id !== agentId && witness.id !== target.id) present.push(witness.id);
+    }
+    summary.take = (summary.take ?? 0) + 1;
+    outcomes.set(agentId, { type: "take", result: "ok", why: `took 1 ${r} from ${nameOf(target)}` });
+    hooks.take?.({
+      tick, simTime, actor: agentId, target: target.id, coord: actor.coord,
+      resource: r, witnesses: present,
+    });
+  }
+
   const describe = (amounts) =>
-    RESOURCE_TYPES.filter((r) => amounts[r] > 0).map((r) => `${amounts[r]} ${r}`).join(", ");
+    world.resourceTypes.filter((r) => amounts[r] > 0).map((r) => `${amounts[r]} ${r}`).join(", ");
 
   // Destruction witness memory (protocol §9.4): everyone in the cell sees the
   // structure go — and nobody is told who did it. Actorship stays in history
@@ -304,8 +359,8 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
     // in the recipient's carry limit, nothing moves, and the failure says
     // only that the gift did not transfer: no number, no mention of capacity.
     // Partial transfer would be an inventory probe through the condition fog.
-    const given = emptyInventory();
-    for (const r of RESOURCE_TYPES) {
+    const given = emptyInventory(world.resourceTypes);
+    for (const r of world.resourceTypes) {
       given[r] = Math.min(rec.action.resources[r] ?? 0, actor.inventory[r]);
     }
     const total = inventoryTotal(given);
@@ -321,7 +376,7 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
       outcomes.set(agentId, { type: "give", result: "failed", why: "the gift did not transfer" });
       continue;
     }
-    for (const r of RESOURCE_TYPES) {
+    for (const r of world.resourceTypes) {
       actor.inventory[r] -= given[r];
       target.inventory[r] += given[r];
     }
@@ -340,8 +395,8 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
   for (const [agentId, rec] of actionsSorted("drop")) {
     const actor = world.agents.get(agentId);
     if (!actor) continue;
-    const dropped = emptyInventory();
-    for (const r of RESOURCE_TYPES) {
+    const dropped = emptyInventory(world.resourceTypes);
+    for (const r of world.resourceTypes) {
       const n = Math.min(rec.action.resources[r] ?? 0, actor.inventory[r]);
       if (n <= 0) continue;
       actor.inventory[r] -= n;
@@ -353,7 +408,7 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
       outcomes.set(agentId, { type: "drop", result: "failed", why: "nothing to drop" });
       continue;
     }
-    addLoose(world.cells.get(actor.coord), dropped);
+    addLoose(world.cells.get(actor.coord), dropped, world.resourceTypes);
     summary.drop += 1;
     outcomes.set(agentId, { type: "drop", result: "ok", why: `dropped ${describe(dropped)}` });
     hooks.drop?.({ tick, simTime, agentId, coord: actor.coord, resources: { ...dropped } });
@@ -373,11 +428,12 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
     // A consume reports what it restored (v0.7 A1): the tick is spent either
     // way, and a consume that restores nothing must say so — same principle
     // as a build shortfall. This reports the OUTCOME only; what a resource
-    // does in general is still never stated (protocol §5.1).
+    // does in general is still never stated (protocol §5.1). What restores
+    // is whichever resource carries the consumable role (engine spec §2.2).
     let restored = 0;
-    if (r === "sivet") {
+    if (r === world.consumable.name) {
       const before = actor.sustenance;
-      actor.sustenance = Math.min(world.vitals.sustenanceMax, actor.sustenance + world.vitals.sivetRestores);
+      actor.sustenance = Math.min(world.vitals.sustenanceMax, actor.sustenance + world.consumable.restores);
       restored = actor.sustenance - before;
     }
     summary.consume += 1;
@@ -422,7 +478,7 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
       continue;
     }
     if (!gatherersByCell.has(actor.coord)) gatherersByCell.set(actor.coord, []);
-    gatherersByCell.get(actor.coord).push({ agentId, rec, actor, taken: emptyInventory() });
+    gatherersByCell.get(actor.coord).push({ agentId, rec, actor, taken: emptyInventory(world.resourceTypes) });
   }
   for (const [coord, gatherers] of gatherersByCell) {
     const cell = world.cells.get(coord);
@@ -448,7 +504,7 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
       });
     }
     if (cell.loose) {
-      for (const resource of RESOURCE_TYPES) {
+      for (const resource of world.resourceTypes) {
         if (cell.loose[resource] > 0) {
           splitPool(cell.loose[resource], (g, amount) => {
             g.actor.inventory[resource] += amount;
@@ -458,9 +514,10 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
         }
       }
       if (inventoryTotal(cell.loose) === 0) cell.loose = null;
-      // The fragment rides the rubble it fell into (protocol §9.1): carry off
-      // the last of the rubble and the broken slab goes with it.
-      if (cell.fragment && (cell.loose?.rubble ?? 0) === 0) cell.fragment = null;
+      // The fragment rides the byproduct pile it fell into (protocol §9.1):
+      // carry off the last of it and the broken slab goes with it.
+      const byName = world.byproduct?.name;
+      if (cell.fragment && (byName == null || (cell.loose?.[byName] ?? 0) === 0)) cell.fragment = null;
     }
     for (const g of gatherers) {
       const total = inventoryTotal(g.taken);
@@ -519,12 +576,12 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
       // never rubble, never substitution (daemon spec §3.5). Rubble covers an
       // orrum gap automatically, reported only on success: the one route by
       // which rubble's use is discovered.
-      const plan = buildPlan(form, body.inventory, world.destruction.rubbleRatio);
+      const plan = buildPlan(world, form, body.inventory);
       if (!plan.ok) {
         rec.coercedWait = true;
         rec.coerceReason = "build_shortfall";
         summary.failedBuild += 1;
-        outcomes.set(builderId, { type: "build", result: "failed", why: formatShortfall(plan.missing) });
+        outcomes.set(builderId, { type: "build", result: "failed", why: formatShortfall(world, plan.missing) });
         hooks.invalidBuild?.({ tick, agentId: builderId, coord, why: "shortfall" });
         continue;
       }
@@ -548,7 +605,7 @@ export function resolveTick(world, tick, simTime, actions, rosterAtOpen, hooks =
         type: "build",
         result: "ok",
         why: plan.substitution
-          ? `built, consuming ${plan.substitution.rubble} rubble in place of ${plan.substitution.orrum} orrum`
+          ? `built, consuming ${plan.substitution.byproductAmount} ${plan.substitution.byproduct} in place of ${plan.substitution.targetAmount} ${plan.substitution.target}`
           : null,
       });
       // Own stream only: the builder remembers building. Nobody else hears.
