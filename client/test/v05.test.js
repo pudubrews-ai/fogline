@@ -439,8 +439,10 @@ test("regression run5-k1: an adapter fault during persona generation at registra
     assert.equal(joined.mode, "register", "the retry registered fresh instead of dying");
     assert.equal(joined.name, "Wren Redux");
     assert.ok(session.agentId, "the session holds a live body");
+    // v0.9 (client spec §3): the banner is STRIPPED from the detail now —
+    // banner-only output records the explicit no-diagnostic-output note.
     assert.ok(
-      logs.some((l) => /adapter_fault: exit 1: kimi version 0\.38\.0 — retrying in \d+ms/.test(l)),
+      logs.some((l) => /adapter_fault: exit 1: non-zero exit, no diagnostic output — retrying in \d+ms/.test(l)),
       `the fault was logged with its retry, not fatal (got: ${JSON.stringify(logs)})`
     );
   } finally {
